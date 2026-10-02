@@ -1,11 +1,11 @@
 :root {
-  --fundo: #14110f;
-  --painel: #1e1a17;
-  --linha: #3a322c;
-  --texto: #f2ebe3;
-  --suave: #a79b8e;
-  --destaque: #d9a75f;
-  --destaque-escuro: #a66d2b;
+  --fundo: #edf5ff;
+  --painel: #ffffff;
+  --linha: #c7d9ee;
+  --texto: #16324f;
+  --suave: #58708a;
+  --destaque: #2878d0;
+  --destaque-escuro: #175ba8;
   --erro: #ff6f7d;
   --sucesso: #7ee6a7;
 }
@@ -19,18 +19,18 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at top, #221d1a 0%, var(--fundo) 45%, #0d0b09 100%);
+  background: radial-gradient(circle at top, #ffffff 0%, var(--fundo) 70%);
   color: var(--texto);
   font-family: Arial, Helvetica, sans-serif;
 }
 
 .card {
   width: min(460px, 92vw);
-  background: rgba(30, 26, 23, 0.96);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--linha);
   border-radius: 18px;
   padding: 28px 24px 22px;
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 22px 48px rgba(34, 83, 132, 0.14);
 }
 
 h1 {
@@ -50,7 +50,7 @@ h1 {
 
 .aba {
   border: 1px solid var(--linha);
-  background: #201b18;
+  background: #f3f8ff;
   color: var(--texto);
   border-radius: 12px;
   padding: 12px 14px;
@@ -65,7 +65,7 @@ h1 {
 
 .aba.ativa {
   background: linear-gradient(180deg, var(--destaque), var(--destaque-escuro));
-  color: #111;
+  color: #ffffff;
   border-color: var(--destaque);
 }
 
@@ -101,7 +101,7 @@ input {
 input:focus {
   outline: none;
   border-color: var(--destaque);
-  box-shadow: 0 0 0 3px rgba(217, 167, 95, 0.2);
+  box-shadow: 0 0 0 3px rgba(40, 120, 208, 0.2);
 }
 
 input.invalido {
@@ -121,7 +121,7 @@ input.invalido {
   border: none;
   border-radius: 10px;
   background: linear-gradient(180deg, var(--destaque), var(--destaque-escuro));
-  color: #111;
+  color: #ffffff;
   font-weight: 800;
   font-size: 1rem;
   padding: 14px 18px;
