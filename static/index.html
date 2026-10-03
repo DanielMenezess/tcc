@@ -3,36 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fade House | Cadastro</title>
+  <meta name="theme-color" content="#ffffff">
+  <title>Fade House | Serviços</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="card">
-    <h1>Fade House</h1>
-
-    <div class="abas" role="tablist" aria-label="Tipo de cadastro">
-      <button type="button" role="tab" class="aba ativa" data-tipo="clientes" aria-selected="true">Sou cliente</button>
-      <button type="button" role="tab" class="aba" data-tipo="barbeiros" aria-selected="false">Sou barbeiro</button>
+  <header class="cabecalho">
+    <div class="marca">
+      <h1>Fade House</h1>
+      <p>Sistema de agendamentos</p>
     </div>
+    <nav class="navegacao" aria-label="Navegação principal">
+      <a class="link-nav ativo" href="#servicos" aria-current="page">Serviços</a>
+    </nav>
+  </header>
 
-    <form id="form" novalidate>
-      <h2 id="titulo">Cadastro de cliente</h2>
+  <main class="conteudo" id="servicos">
+    <section class="painel" aria-labelledby="titulo-servicos">
+      <div class="cabecalho-painel">
+        <h2 id="titulo-servicos">Serviços</h2>
+        <span id="total-servicos" class="contador" aria-live="polite"></span>
+      </div>
+      <ul id="lista-servicos" class="lista-servicos" aria-live="polite">
+        <li class="estado-lista">Carregando serviços...</li>
+      </ul>
+    </section>
 
-      <label for="nome">Nome</label>
-      <input id="nome" name="nome" type="text" autocomplete="name">
-      <span class="erro" data-erro="nome"></span>
-
-      <label for="email">E-mail</label>
-      <input id="email" name="email" type="email" autocomplete="email">
-      <span class="erro" data-erro="email"></span>
-
-      <label for="telefone">Telefone</label>
-      <input id="telefone" name="telefone" type="tel" inputmode="numeric" autocomplete="tel">
-      <span class="erro" data-erro="telefone"></span>
-
-      <button id="enviar" type="submit">Cadastrar</button>
-      <p id="mensagem" aria-live="polite"></p>
-    </form>
+    <section class="painel painel-formulario" aria-labelledby="titulo-adicionar">
+      <h2 id="titulo-adicionar">Adicionar serviço</h2>
+      <form id="form-servico">
+        <div class="campos-formulario">
+          <div class="campo campo-nome">
+            <label for="nome">Nome</label>
+            <input id="nome" name="nome" type="text" placeholder="Ex.: Barboterapia" maxlength="80" required>
+            <span class="erro" data-erro="nome"></span>
+          </div>
+          <div class="campo">
+            <label for="duracao">Duração (min)</label>
+            <input id="duracao" name="duracao" type="number" min="5" max="480" step="5" placeholder="30" required>
+            <span class="erro" data-erro="duracao"></span>
+          </div>
+          <div class="campo campo-preco">
+            <label for="preco">Preço (R$)</label>
+            <input id="preco" name="preco" type="number" min="0" max="99999.99" step="0.01" placeholder="40,00" required>
+            <span class="erro" data-erro="preco"></span>
+          </div>
+        </div>
+        <p id="mensagem" class="mensagem" aria-live="polite"></p>
+        <button id="adicionar" class="botao-principal" type="submit">Adicionar</button>
+      </form>
+    </section>
   </main>
 
   <script src="app.js"></script>
