@@ -6,6 +6,7 @@ const mensagemServico = document.getElementById("mensagem");
 const mensagemCadastro = document.getElementById("mensagem-cadastro");
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
+const botaoSair = document.getElementById("botao-sair");
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
@@ -204,6 +205,21 @@ lista.addEventListener("click", async (evento) => {
     botao.disabled = false;
     mensagemServico.textContent = "Não foi possível remover o serviço. Tente novamente.";
     mensagemServico.className = "mensagem";
+  }
+});
+
+botaoSair.addEventListener("click", async () => {
+  botaoSair.disabled = true;
+  try {
+    const resposta = await fetch("/api/sair", { method: "POST" });
+    if (!resposta.ok) throw new Error("Falha ao encerrar a sessão.");
+    tipoUsuario = null;
+    mensagemCadastro.textContent = "";
+    mostrarCadastro();
+  } catch {
+    document.getElementById("tipo-usuario").textContent = "Não foi possível sair da conta. Tente novamente.";
+  } finally {
+    botaoSair.disabled = false;
   }
 });
 

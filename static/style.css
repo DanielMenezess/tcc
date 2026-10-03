@@ -232,6 +232,29 @@ body {
   opacity: 0.6;
 }
 
+.botao-sair {
+  min-height: 36px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid #c9d8e8;
+  border-radius: 5px;
+  color: var(--azul-escuro);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.botao-sair:hover:not(:disabled) {
+  background: #eef5fc;
+  border-color: var(--azul);
+}
+
+.botao-sair:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .estado-lista {
   padding: 14px 12px;
   color: var(--suave);
@@ -334,6 +357,7 @@ body {
 .botao-principal:focus-visible,
 .botao-remover:focus-visible,
 .link-nav:focus-visible,
+.botao-sair:focus-visible,
 .seletor-perfil button:focus-visible {
   outline: 3px solid rgba(40, 120, 200, 0.28);
   outline-offset: 2px;
