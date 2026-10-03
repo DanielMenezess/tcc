@@ -11,6 +11,8 @@ const botaoSair = document.getElementById("botao-sair");
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
+const instrucaoServicos = document.getElementById("instrucao-servicos");
+const resultadoEscolha = document.getElementById("resultado-escolha");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
@@ -18,6 +20,7 @@ const formatarPreco = new Intl.NumberFormat("pt-BR", {
 });
 let perfilSelecionado = "clientes";
 let tipoUsuario = null;
+let servicoSelecionadoId = null;
 
 function formatarTelefone(digitos) {
   const numero = digitos.replace(/\D/g, "").slice(0, 11);
@@ -62,6 +65,9 @@ function mostrarServicos(usuario) {
   telaCadastro.hidden = true;
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
+  instrucaoServicos.hidden = tipoUsuario !== "clientes";
+  resultadoEscolha.textContent = "";
+  servicoSelecionadoId = null;
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
     ? "Área do barbeiro"
@@ -112,7 +118,17 @@ function renderizarServicos(servicos) {
     informacoes.append(nome, detalhe);
 
     item.append(informacoes);
-    if (tipoUsuario === "barbeiros") {
+    if (tipoUsuario === "clientes") {
+      const escolher = document.createElement("button");
+      escolher.type = "button";
+      escolher.className = "botao-escolher";
+      escolher.dataset.id = servico.id;
+      const selecionado = String(servico.id) === servicoSelecionadoId;
+      escolher.textContent = selecionado ? "Selecionado" : "Escolher";
+      escolher.setAttribute("aria-pressed", String(selecionado));
+      escolher.setAttribute("aria-label", `Escolher ${servico.nome}`);
+      item.append(escolher);
+    } else if (tipoUsuario === "barbeiros") {
       const remover = document.createElement("button");
       remover.type = "button";
       remover.className = "botao-remover";
@@ -227,6 +243,19 @@ formCadastro.addEventListener("submit", async (evento) => {
 });
 
 lista.addEventListener("click", async (evento) => {
+  const botaoEscolher = evento.target.closest(".botao-escolher");
+  if (botaoEscolher) {
+    servicoSelecionadoId = botaoEscolher.dataset.id;
+    lista.querySelectorAll(".botao-escolher").forEach((botao) => {
+      const selecionado = botao === botaoEscolher;
+      botao.textContent = selecionado ? "Selecionado" : "Escolher";
+      botao.setAttribute("aria-pressed", String(selecionado));
+    });
+    const nome = botaoEscolher.closest(".servico").querySelector("strong").textContent;
+    resultadoEscolha.textContent = `Serviço escolhido: ${nome}.`;
+    return;
+  }
+
   const botao = evento.target.closest(".botao-remover");
   if (!botao) return;
 

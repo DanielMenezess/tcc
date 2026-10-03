@@ -209,6 +209,7 @@ body {
   color: #3e5872;
 }
 
+.botao-escolher,
 .botao-remover {
   flex: 0 0 auto;
   min-height: 30px;
@@ -220,6 +221,23 @@ body {
   font: inherit;
   font-size: 0.78rem;
   cursor: pointer;
+}
+
+.botao-escolher {
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.botao-escolher:hover {
+  background: var(--azul-escuro);
+  border-color: var(--azul-escuro);
+}
+
+.botao-escolher[aria-pressed="true"] {
+  background: var(--sucesso);
+  border-color: var(--sucesso);
 }
 
 .botao-remover:hover {
@@ -355,6 +373,7 @@ body {
 }
 
 .botao-principal:focus-visible,
+.botao-escolher:focus-visible,
 .botao-remover:focus-visible,
 .link-nav:focus-visible,
 .botao-sair:focus-visible,
