@@ -1,40 +1,48 @@
-const form = document.getElementById("form-servico");
+const formServico = document.getElementById("form-servico");
+const formCadastro = document.getElementById("form-cadastro");
 const lista = document.getElementById("lista-servicos");
 const total = document.getElementById("total-servicos");
-const mensagem = document.getElementById("mensagem");
+const mensagemServico = document.getElementById("mensagem");
+const mensagemCadastro = document.getElementById("mensagem-cadastro");
 const botaoAdicionar = document.getElementById("adicionar");
-const abas = Array.from(document.querySelectorAll('[role="tab"]'));
-const paineisAbas = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+const botaoCadastro = document.getElementById("botao-cadastro");
+const telaCadastro = document.getElementById("tela-cadastro");
+const telaServicos = document.getElementById("tela-servicos");
+const painelAdicionar = document.getElementById("painel-adicionar");
+const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
+let perfilSelecionado = "clientes";
+let tipoUsuario = null;
 
-function ativarAba(aba) {
-  abas.forEach((item) => {
-    const selecionada = item === aba;
-    item.classList.toggle("ativo", selecionada);
-    item.setAttribute("aria-selected", selecionada);
-    item.tabIndex = selecionada ? 0 : -1;
-  });
-  paineisAbas.forEach((painel) => {
-    painel.hidden = painel.id !== aba.getAttribute("aria-controls");
-  });
+function mostrarCadastro() {
+  telaCadastro.hidden = false;
+  telaServicos.hidden = true;
 }
 
-abas.forEach((aba, indice) => {
-  aba.addEventListener("click", () => ativarAba(aba));
-  aba.addEventListener("keydown", (evento) => {
-    let proximoIndice;
-    if (evento.key === "ArrowRight") proximoIndice = (indice + 1) % abas.length;
-    else if (evento.key === "ArrowLeft") proximoIndice = (indice - 1 + abas.length) % abas.length;
-    else if (evento.key === "Home") proximoIndice = 0;
-    else if (evento.key === "End") proximoIndice = abas.length - 1;
-    else return;
+function mostrarServicos(usuario) {
+  tipoUsuario = usuario.tipo;
+  telaCadastro.hidden = true;
+  telaServicos.hidden = false;
+  painelAdicionar.hidden = tipoUsuario !== "barbeiros";
+  document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
+  document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
+    ? "Área do barbeiro"
+    : "Área do cliente";
+  carregarServicos();
+}
 
-    evento.preventDefault();
-    abas[proximoIndice].focus();
-    ativarAba(abas[proximoIndice]);
+seletorPerfil.forEach((botao) => {
+  botao.addEventListener("click", () => {
+    perfilSelecionado = botao.dataset.perfil;
+    seletorPerfil.forEach((item) => {
+      const selecionado = item === botao;
+      item.classList.toggle("perfil-selecionado", selecionado);
+      item.setAttribute("aria-pressed", String(selecionado));
+    });
+    botaoCadastro.textContent = `Cadastrar como ${perfilSelecionado === "clientes" ? "cliente" : "barbeiro"}`;
   });
 });
 
@@ -68,14 +76,16 @@ function renderizarServicos(servicos) {
     detalhe.textContent = ` — ${servico.duracao} min — R$ ${formatarPreco.format(servico.preco)}`;
     informacoes.append(nome, detalhe);
 
-    const remover = document.createElement("button");
-    remover.type = "button";
-    remover.className = "botao-remover";
-    remover.dataset.id = servico.id;
-    remover.textContent = "Remover";
-    remover.setAttribute("aria-label", `Remover ${servico.nome}`);
-
-    item.append(informacoes, remover);
+    item.append(informacoes);
+    if (tipoUsuario === "barbeiros") {
+      const remover = document.createElement("button");
+      remover.type = "button";
+      remover.className = "botao-remover";
+      remover.dataset.id = servico.id;
+      remover.textContent = "Remover";
+      remover.setAttribute("aria-label", `Remover ${servico.nome}`);
+      item.append(remover);
+    }
     lista.append(item);
   });
 }
@@ -111,14 +121,14 @@ function mostrarErros(formulario, erros) {
   });
 }
 
-form.addEventListener("submit", async (evento) => {
+formServico.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  limparErros(form);
-  mensagem.textContent = "";
-  mensagem.className = "mensagem";
+  limparErros(formServico);
+  mensagemServico.textContent = "";
+  mensagemServico.className = "mensagem";
   botaoAdicionar.disabled = true;
 
-  const dados = Object.fromEntries(new FormData(form));
+  const dados = Object.fromEntries(new FormData(formServico));
   dados.duracao = Number(dados.duracao);
   dados.preco = Number(dados.preco);
 
@@ -131,37 +141,33 @@ form.addEventListener("submit", async (evento) => {
     const corpo = await resposta.json();
 
     if (!resposta.ok) {
-      if (corpo.erros) mostrarErros(form, corpo.erros);
-      else mensagem.textContent = corpo.erro || "Não foi possível adicionar o serviço.";
+      if (corpo.erros) mostrarErros(formServico, corpo.erros);
+      else mensagemServico.textContent = corpo.erro || "Não foi possível adicionar o serviço.";
       return;
     }
 
-    form.reset();
-    mensagem.textContent = "Serviço adicionado.";
-    mensagem.classList.add("sucesso");
+    formServico.reset();
+    mensagemServico.textContent = "Serviço adicionado.";
+    mensagemServico.classList.add("sucesso");
     await carregarServicos();
   } catch {
-    mensagem.textContent = "Sem conexão com o servidor. Tente novamente.";
+    mensagemServico.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
     botaoAdicionar.disabled = false;
   }
 });
 
-const formCliente = document.getElementById("form-cliente");
-const mensagemCliente = document.getElementById("mensagem-cliente");
-const botaoCadastrarCliente = document.getElementById("cadastrar-cliente");
-
-formCliente.addEventListener("submit", async (evento) => {
+formCadastro.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  limparErros(formCliente);
-  mensagemCliente.textContent = "";
-  mensagemCliente.className = "mensagem";
-  botaoCadastrarCliente.disabled = true;
+  limparErros(formCadastro);
+  mensagemCadastro.textContent = "";
+  mensagemCadastro.className = "mensagem";
+  botaoCadastro.disabled = true;
 
-  const dados = Object.fromEntries(new FormData(formCliente));
+  const dados = Object.fromEntries(new FormData(formCadastro));
 
   try {
-    const resposta = await fetch("/api/clientes", {
+    const resposta = await fetch(`/api/${perfilSelecionado}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dados),
@@ -169,18 +175,19 @@ formCliente.addEventListener("submit", async (evento) => {
     const corpo = await resposta.json();
 
     if (!resposta.ok) {
-      if (corpo.erros) mostrarErros(formCliente, corpo.erros);
-      else mensagemCliente.textContent = corpo.erro || "Não foi possível cadastrar o cliente.";
+      if (corpo.erros) mostrarErros(formCadastro, corpo.erros);
+      else mensagemCadastro.textContent = corpo.erro || "Não foi possível concluir o cadastro.";
       return;
     }
 
-    formCliente.reset();
-    mensagemCliente.textContent = "Cliente cadastrado.";
-    mensagemCliente.classList.add("sucesso");
+    formCadastro.reset();
+    const sessao = await fetch("/api/sessao");
+    const usuario = await sessao.json();
+    mostrarServicos(usuario);
   } catch {
-    mensagemCliente.textContent = "Sem conexão com o servidor. Tente novamente.";
+    mensagemCadastro.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
-    botaoCadastrarCliente.disabled = false;
+    botaoCadastro.disabled = false;
   }
 });
 
@@ -195,9 +202,20 @@ lista.addEventListener("click", async (evento) => {
     await carregarServicos();
   } catch {
     botao.disabled = false;
-    mensagem.textContent = "Não foi possível remover o serviço. Tente novamente.";
-    mensagem.className = "mensagem";
+    mensagemServico.textContent = "Não foi possível remover o serviço. Tente novamente.";
+    mensagemServico.className = "mensagem";
   }
 });
 
-carregarServicos();
+async function iniciar() {
+  try {
+    const resposta = await fetch("/api/sessao");
+    const usuario = await resposta.json();
+    if (usuario.autenticado) mostrarServicos(usuario);
+    else mostrarCadastro();
+  } catch {
+    mostrarCadastro();
+  }
+}
+
+iniciar();

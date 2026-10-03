@@ -2,14 +2,17 @@
 import re
 import sqlite3
 import math
+import os
+import secrets
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, session
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "fadehouse.db"
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
 TABELAS = {"clientes": "cliente", "barbeiros": "barbeiro"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -102,14 +105,35 @@ def cadastrar(tipo):
 
     try:
         with sqlite3.connect(DB_PATH) as db:
-            db.execute(
+            cursor = db.execute(
                 f"INSERT INTO {tabela} (nome, email, telefone) VALUES (?, ?, ?)",
                 (dados["nome"], dados["email"], dados["telefone"]),
             )
     except sqlite3.IntegrityError:
         return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409
 
+    session.clear()
+    session["tipo"] = tipo
+    session["usuario_id"] = cursor.lastrowid
+    session["nome"] = dados["nome"]
     return jsonify(ok=True), 201
+
+
+@app.get("/api/sessao")
+def sessao_atual():
+    if not session.get("tipo"):
+        return jsonify(autenticado=False)
+    return jsonify(
+        autenticado=True,
+        tipo=session["tipo"],
+        nome=session["nome"],
+    )
+
+
+@app.post("/api/sair")
+def sair():
+    session.clear()
+    return jsonify(ok=True)
 
 
 @app.get("/api/servicos")
@@ -124,6 +148,9 @@ def listar_servicos():
 
 @app.post("/api/servicos")
 def criar_servico():
+    if session.get("tipo") != "barbeiros":
+        return jsonify(erro="Apenas barbeiros podem gerenciar serviços."), 403
+
     dados, erros = validar_servico(request.get_json(silent=True) or {})
     if erros:
         return jsonify(erros=erros), 400
@@ -143,6 +170,9 @@ def criar_servico():
 
 @app.delete("/api/servicos/<int:servico_id>")
 def remover_servico(servico_id):
+    if session.get("tipo") != "barbeiros":
+        return jsonify(erro="Apenas barbeiros podem gerenciar serviços."), 403
+
     with sqlite3.connect(DB_PATH) as db:
         cursor = db.execute("DELETE FROM servico WHERE id = ?", (servico_id,))
     if cursor.rowcount == 0:
