@@ -3,9 +3,39 @@ const lista = document.getElementById("lista-servicos");
 const total = document.getElementById("total-servicos");
 const mensagem = document.getElementById("mensagem");
 const botaoAdicionar = document.getElementById("adicionar");
+const abas = Array.from(document.querySelectorAll('[role="tab"]'));
+const paineisAbas = Array.from(document.querySelectorAll('[role="tabpanel"]'));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
+});
+
+function ativarAba(aba) {
+  abas.forEach((item) => {
+    const selecionada = item === aba;
+    item.classList.toggle("ativo", selecionada);
+    item.setAttribute("aria-selected", selecionada);
+    item.tabIndex = selecionada ? 0 : -1;
+  });
+  paineisAbas.forEach((painel) => {
+    painel.hidden = painel.id !== aba.getAttribute("aria-controls");
+  });
+}
+
+abas.forEach((aba, indice) => {
+  aba.addEventListener("click", () => ativarAba(aba));
+  aba.addEventListener("keydown", (evento) => {
+    let proximoIndice;
+    if (evento.key === "ArrowRight") proximoIndice = (indice + 1) % abas.length;
+    else if (evento.key === "ArrowLeft") proximoIndice = (indice - 1 + abas.length) % abas.length;
+    else if (evento.key === "Home") proximoIndice = 0;
+    else if (evento.key === "End") proximoIndice = abas.length - 1;
+    else return;
+
+    evento.preventDefault();
+    abas[proximoIndice].focus();
+    ativarAba(abas[proximoIndice]);
+  });
 });
 
 function exibirEstado(texto) {
@@ -63,19 +93,19 @@ async function carregarServicos() {
   }
 }
 
-function limparErros() {
-  document.querySelectorAll(".erro").forEach((campo) => {
+function limparErros(formulario) {
+  formulario.querySelectorAll(".erro").forEach((campo) => {
     campo.textContent = "";
   });
-  form.querySelectorAll("input").forEach((campo) => {
+  formulario.querySelectorAll("input").forEach((campo) => {
     campo.classList.remove("invalido");
   });
 }
 
-function mostrarErros(erros) {
+function mostrarErros(formulario, erros) {
   Object.entries(erros).forEach(([campo, texto]) => {
-    const detalhe = document.querySelector(`[data-erro="${campo}"]`);
-    const entrada = form.elements[campo];
+    const detalhe = formulario.querySelector(`[data-erro="${campo}"]`);
+    const entrada = formulario.elements[campo];
     if (detalhe) detalhe.textContent = texto;
     if (entrada) entrada.classList.add("invalido");
   });
@@ -83,7 +113,7 @@ function mostrarErros(erros) {
 
 form.addEventListener("submit", async (evento) => {
   evento.preventDefault();
-  limparErros();
+  limparErros(form);
   mensagem.textContent = "";
   mensagem.className = "mensagem";
   botaoAdicionar.disabled = true;
@@ -101,7 +131,7 @@ form.addEventListener("submit", async (evento) => {
     const corpo = await resposta.json();
 
     if (!resposta.ok) {
-      if (corpo.erros) mostrarErros(corpo.erros);
+      if (corpo.erros) mostrarErros(form, corpo.erros);
       else mensagem.textContent = corpo.erro || "Não foi possível adicionar o serviço.";
       return;
     }
@@ -114,6 +144,43 @@ form.addEventListener("submit", async (evento) => {
     mensagem.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
     botaoAdicionar.disabled = false;
+  }
+});
+
+const formCliente = document.getElementById("form-cliente");
+const mensagemCliente = document.getElementById("mensagem-cliente");
+const botaoCadastrarCliente = document.getElementById("cadastrar-cliente");
+
+formCliente.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  limparErros(formCliente);
+  mensagemCliente.textContent = "";
+  mensagemCliente.className = "mensagem";
+  botaoCadastrarCliente.disabled = true;
+
+  const dados = Object.fromEntries(new FormData(formCliente));
+
+  try {
+    const resposta = await fetch("/api/clientes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    const corpo = await resposta.json();
+
+    if (!resposta.ok) {
+      if (corpo.erros) mostrarErros(formCliente, corpo.erros);
+      else mensagemCliente.textContent = corpo.erro || "Não foi possível cadastrar o cliente.";
+      return;
+    }
+
+    formCliente.reset();
+    mensagemCliente.textContent = "Cliente cadastrado.";
+    mensagemCliente.classList.add("sucesso");
+  } catch {
+    mensagemCliente.textContent = "Sem conexão com o servidor. Tente novamente.";
+  } finally {
+    botaoCadastrarCliente.disabled = false;
   }
 });
 

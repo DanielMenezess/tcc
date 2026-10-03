@@ -61,12 +61,15 @@ body {
   display: inline-flex;
   align-items: center;
   padding: 0 16px;
+  background: transparent;
+  border: 0;
   border-bottom: 3px solid transparent;
   color: var(--suave);
+  font: inherit;
   font-size: 0.85rem;
   font-weight: 800;
-  text-decoration: none;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
 .link-nav:hover,
@@ -83,6 +86,15 @@ body {
   width: min(900px, calc(100% - 40px));
   gap: 18px;
   margin: 26px auto 48px;
+}
+
+.visao {
+  display: grid;
+  gap: 18px;
+}
+
+.visao[hidden] {
+  display: none;
 }
 
 .painel {
@@ -227,6 +239,10 @@ body {
   grid-column: 1;
 }
 
+.campo-completo {
+  grid-column: 1 / -1;
+}
+
 .campo-preco {
   grid-column: 1;
 }
@@ -310,7 +326,8 @@ body {
   }
 
   .campo-nome,
-  .campo-preco {
+  .campo-preco,
+  .campo-completo {
     grid-column: auto;
   }
 
