@@ -4,6 +4,7 @@ const lista = document.getElementById("lista-servicos");
 const total = document.getElementById("total-servicos");
 const mensagemServico = document.getElementById("mensagem");
 const mensagemCadastro = document.getElementById("mensagem-cadastro");
+const campoTelefone = document.getElementById("cadastro-telefone");
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
 const botaoSair = document.getElementById("botao-sair");
@@ -17,6 +18,39 @@ const formatarPreco = new Intl.NumberFormat("pt-BR", {
 });
 let perfilSelecionado = "clientes";
 let tipoUsuario = null;
+
+function formatarTelefone(digitos) {
+  const numero = digitos.replace(/\D/g, "").slice(0, 11);
+  if (numero.length === 0) return "";
+  if (numero.length <= 2) return `(${numero}`;
+
+  const ddd = numero.slice(0, 2);
+  const telefone = numero.slice(2);
+  const celular = telefone.startsWith("9") || numero.length > 10;
+  const tamanhoPrefixo = celular ? 5 : 4;
+  const parteInicial = telefone.slice(0, tamanhoPrefixo);
+  const parteFinal = telefone.slice(tamanhoPrefixo);
+  const numeroFormatado = parteFinal ? `${parteInicial}-${parteFinal}` : parteInicial;
+  return `(${ddd}) ${numeroFormatado}`;
+}
+
+function posicaoDoCursor(texto, quantidadeDigitos) {
+  if (quantidadeDigitos === 0) return 0;
+  let digitosEncontrados = 0;
+  for (let indice = 0; indice < texto.length; indice += 1) {
+    if (/\d/.test(texto[indice])) digitosEncontrados += 1;
+    if (digitosEncontrados === quantidadeDigitos) return indice + 1;
+  }
+  return texto.length;
+}
+
+campoTelefone.addEventListener("input", () => {
+  const posicaoAtual = campoTelefone.selectionStart ?? campoTelefone.value.length;
+  const quantidadeDigitos = campoTelefone.value.slice(0, posicaoAtual).replace(/\D/g, "").length;
+  campoTelefone.value = formatarTelefone(campoTelefone.value);
+  const novaPosicao = posicaoDoCursor(campoTelefone.value, quantidadeDigitos);
+  campoTelefone.setSelectionRange(novaPosicao, novaPosicao);
+});
 
 function mostrarCadastro() {
   telaCadastro.hidden = false;
