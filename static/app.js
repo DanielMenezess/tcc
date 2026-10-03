@@ -12,7 +12,6 @@ const telaCadastro = document.getElementById("tela-cadastro");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
-const resultadoEscolha = document.getElementById("resultado-escolha");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
@@ -66,7 +65,6 @@ function mostrarServicos(usuario) {
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
-  resultadoEscolha.textContent = "";
   servicoSelecionadoId = null;
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
@@ -251,8 +249,6 @@ lista.addEventListener("click", async (evento) => {
       botao.textContent = selecionado ? "Selecionado" : "Escolher";
       botao.setAttribute("aria-pressed", String(selecionado));
     });
-    const nome = botaoEscolher.closest(".servico").querySelector("strong").textContent;
-    resultadoEscolha.textContent = `Serviço escolhido: ${nome}.`;
     return;
   }
 
