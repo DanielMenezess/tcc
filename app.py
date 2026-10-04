@@ -148,34 +148,48 @@ def login():
     dados = request.get_json(silent=True) or {}
     tipo = dados.get("tipo")
     tabela = TABELAS.get(tipo)
-    email = str(dados.get("email", "")).strip().lower()
+    identificador = str(dados.get("identificador", "")).strip()
     senha = str(dados.get("senha", ""))
-    telefone = re.sub(r"\D", "", str(dados.get("telefone", "")))
 
-    usuario = None
+    usuarios = []
     if tabela and senha:
         with sqlite3.connect(DB_PATH) as db:
-            usuario = db.execute(
-                f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE email = ?",
-                (email,),
-            ).fetchone()
+            if EMAIL_RE.fullmatch(identificador.lower()):
+                usuarios = db.execute(
+                    f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE email = ?",
+                    (identificador.lower(),),
+                ).fetchall()
+            else:
+                telefone = re.sub(r"\D", "", identificador)
+                formato_telefone = re.fullmatch(r"[+\d()\s.-]+", identificador)
+                if formato_telefone and len(telefone) in (10, 11):
+                    usuarios = db.execute(
+                        f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE telefone = ?",
+                        (telefone,),
+                    ).fetchall()
+
+    usuario = next(
+        (conta for conta in usuarios if conta[2] and check_password_hash(conta[2], senha)),
+        None,
+    )
 
     if not usuario:
-        return jsonify(erro="E-mail ou senha incorretos."), 401
-
-    if usuario[2]:
-        if not check_password_hash(usuario[2], senha):
-            return jsonify(erro="E-mail ou senha incorretos."), 401
-    else:
-        if len(senha) < 6 or len(senha) > 128:
-            return jsonify(erro="Defina uma senha com 6 a 128 caracteres."), 400
-        if not telefone or telefone != usuario[3]:
-            return jsonify(erro="No primeiro acesso, informe o telefone cadastrado."), 401
-        with sqlite3.connect(DB_PATH) as db:
-            db.execute(
-                f"UPDATE {tabela} SET senha_hash = ? WHERE id = ?",
-                (generate_password_hash(senha), usuario[0]),
-            )
+        telefone = re.sub(r"\D", "", identificador)
+        contas_sem_senha = [conta for conta in usuarios if not conta[2]]
+        if len(contas_sem_senha) == 1 and telefone == contas_sem_senha[0][3]:
+            conta = contas_sem_senha[0]
+            if len(senha) < 6 or len(senha) > 128:
+                return jsonify(erro="Defina uma senha com 6 a 128 caracteres."), 400
+            with sqlite3.connect(DB_PATH) as db:
+                db.execute(
+                    f"UPDATE {tabela} SET senha_hash = ? WHERE id = ?",
+                    (generate_password_hash(senha), conta[0]),
+                )
+            usuario = conta
+        elif contas_sem_senha and EMAIL_RE.fullmatch(identificador.lower()):
+            return jsonify(erro="No primeiro acesso, use o telefone cadastrado para definir sua senha."), 401
+        else:
+            return jsonify(erro="E-mail/telefone ou senha incorretos."), 401
 
     session.clear()
     session["tipo"] = tipo

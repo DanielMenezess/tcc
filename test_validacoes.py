@@ -19,7 +19,7 @@ def testar_login_de_cliente_cadastrado(tmp_path, monkeypatch):
 
     resposta = cliente.post(
         "/api/login",
-        json={"tipo": "clientes", "email": "MARIA@TESTE.COM", "senha": "senha-segura-123"},
+        json={"tipo": "clientes", "identificador": "MARIA@TESTE.COM", "senha": "senha-segura-123"},
     )
 
     assert resposta.status_code == 200
@@ -48,11 +48,36 @@ def testar_login_rejeita_senha_incorreta(tmp_path, monkeypatch):
 
     resposta = cliente.post(
         "/api/login",
-        json={"tipo": "clientes", "email": "maria@teste.com", "senha": "senha-errada"},
+        json={"tipo": "clientes", "identificador": "maria@teste.com", "senha": "senha-errada"},
     )
 
     assert resposta.status_code == 401
-    assert resposta.json["erro"] == "E-mail ou senha incorretos."
+    assert resposta.json["erro"] == "E-mail/telefone ou senha incorretos."
+
+
+def testar_login_de_cliente_com_telefone(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    cliente.post("/api/sair")
+
+    resposta = cliente.post(
+        "/api/login",
+        json={"tipo": "clientes", "identificador": "(41) 99999-9999", "senha": "senha-segura-123"},
+    )
+
+    assert resposta.status_code == 200
+    assert cliente.get("/api/sessao").json["nome"] == "Maria da Silva"
 
 
 def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch):
@@ -78,7 +103,7 @@ def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch
     cliente.post("/api/sair")
     resposta_login = cliente.post(
         "/api/login",
-        json={"tipo": "barbeiros", "email": "joao@teste.com", "senha": "senha-segura-123"},
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
     )
     assert resposta_login.status_code == 200
     assert cliente.get("/api/sessao").json["tipo"] == "barbeiros"
@@ -178,8 +203,7 @@ def testar_conta_antiga_define_senha_no_primeiro_acesso(tmp_path, monkeypatch):
         "/api/login",
         json={
             "tipo": "clientes",
-            "email": "maria@teste.com",
-            "telefone": "(41) 99999-9999",
+            "identificador": "(41) 99999-9999",
             "senha": "abc123",
         },
     )
@@ -189,7 +213,7 @@ def testar_conta_antiga_define_senha_no_primeiro_acesso(tmp_path, monkeypatch):
     cliente.post("/api/sair")
     resposta_login = cliente.post(
         "/api/login",
-        json={"tipo": "clientes", "email": "maria@teste.com", "senha": "abc123"},
+        json={"tipo": "clientes", "identificador": "maria@teste.com", "senha": "abc123"},
     )
     assert resposta_login.status_code == 200
 
