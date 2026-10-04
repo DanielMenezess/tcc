@@ -124,6 +124,22 @@ def cadastrar(tipo):
 
     try:
         with sqlite3.connect(DB_PATH) as db:
+            db.execute("BEGIN IMMEDIATE")
+            for tabela_existente in TABELAS.values():
+                if db.execute(
+                    f"SELECT 1 FROM {tabela_existente} WHERE lower(email) = ? LIMIT 1",
+                    (dados["email"],),
+                ).fetchone():
+                    erros["email"] = "Este e-mail já está cadastrado."
+                if db.execute(
+                    f"SELECT 1 FROM {tabela_existente} WHERE telefone = ? LIMIT 1",
+                    (dados["telefone"],),
+                ).fetchone():
+                    erros["telefone"] = "Este telefone já está cadastrado."
+
+            if erros:
+                return jsonify(erros=erros), 409
+
             cursor = db.execute(
                 f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
                 (

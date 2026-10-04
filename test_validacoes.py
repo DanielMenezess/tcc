@@ -80,6 +80,43 @@ def testar_login_de_cliente_com_telefone(tmp_path, monkeypatch):
     assert cliente.get("/api/sessao").json["nome"] == "Maria da Silva"
 
 
+def testar_email_e_telefone_nao_podem_ser_reutilizados_entre_perfis(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+
+    def cadastrar(perfil, nome, email, telefone):
+        return cliente.post(
+            f"/api/{perfil}",
+            json={
+                "nome": nome,
+                "email": email,
+                "telefone": telefone,
+                "senha": "senha-segura-123",
+                "confirmar_senha": "senha-segura-123",
+            },
+        )
+
+    assert cadastrar("clientes", "Maria da Silva", "cliente@teste.com", "41911111111").status_code == 201
+    assert cadastrar("barbeiros", "João da Silva", "barbeiro@teste.com", "41922222222").status_code == 201
+
+    email_de_cliente = cadastrar("barbeiros", "Pedro da Silva", "cliente@teste.com", "41933333333")
+    assert email_de_cliente.status_code == 409
+    assert "email" in email_de_cliente.json["erros"]
+
+    telefone_de_cliente = cadastrar("barbeiros", "Pedro da Silva", "pedro@teste.com", "41911111111")
+    assert telefone_de_cliente.status_code == 409
+    assert "telefone" in telefone_de_cliente.json["erros"]
+
+    email_de_barbeiro = cadastrar("clientes", "Ana da Silva", "barbeiro@teste.com", "41944444444")
+    assert email_de_barbeiro.status_code == 409
+    assert "email" in email_de_barbeiro.json["erros"]
+
+    telefone_de_barbeiro = cadastrar("clientes", "Ana da Silva", "ana@teste.com", "41922222222")
+    assert telefone_de_barbeiro.status_code == 409
+    assert "telefone" in telefone_de_barbeiro.json["erros"]
+
+
 def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()

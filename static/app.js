@@ -19,6 +19,9 @@ const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro
 const instrucaoServicos = document.getElementById("instrucao-servicos");
 const listaBarbeiros = document.getElementById("lista-barbeiros");
 const totalBarbeiros = document.getElementById("total-barbeiros");
+const painelEscolherData = document.getElementById("painel-escolher-data");
+const campoDataAgendamento = document.getElementById("data-agendamento");
+const mensagemData = document.getElementById("mensagem-data");
 const painelEscolherHorario = document.getElementById("painel-escolher-horario");
 const listaHorarios = document.getElementById("lista-horarios");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
@@ -34,7 +37,16 @@ let perfilLoginSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
 let barbeiroSelecionadoId = null;
+let dataSelecionada = null;
 let horarioSelecionado = null;
+
+function dataLocalAtual() {
+  const agora = new Date();
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
 
 function renderizarHorarios() {
   listaHorarios.replaceChildren();
@@ -105,10 +117,15 @@ function mostrarServicos(usuario) {
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
-  painelEscolherHorario.hidden = tipoUsuario !== "clientes";
+  painelEscolherData.hidden = tipoUsuario !== "clientes";
+  painelEscolherHorario.hidden = true;
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
   servicoSelecionadoId = null;
   barbeiroSelecionadoId = null;
+  dataSelecionada = null;
+  campoDataAgendamento.min = dataLocalAtual();
+  campoDataAgendamento.value = "";
+  mensagemData.textContent = "Selecione hoje ou uma data futura.";
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
   renderizarHorarios();
@@ -134,6 +151,29 @@ seletorPerfil.forEach((botao) => {
 
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
+campoDataAgendamento.addEventListener("change", () => {
+  const hoje = dataLocalAtual();
+  campoDataAgendamento.min = hoje;
+
+  if (!campoDataAgendamento.value || campoDataAgendamento.value < hoje) {
+    campoDataAgendamento.value = "";
+    dataSelecionada = null;
+    horarioSelecionado = null;
+    painelEscolherHorario.hidden = true;
+    horarioSelecionadoTexto.textContent = "";
+    renderizarHorarios();
+    mensagemData.textContent = "Escolha hoje ou uma data futura.";
+    return;
+  }
+
+  dataSelecionada = campoDataAgendamento.value;
+  horarioSelecionado = null;
+  horarioSelecionadoTexto.textContent = "";
+  const [ano, mes, dia] = dataSelecionada.split("-");
+  mensagemData.textContent = `Horários para ${dia}/${mes}/${ano}.`;
+  painelEscolherHorario.hidden = false;
+  renderizarHorarios();
+});
 seletorPerfilLogin.forEach((botao) => {
   botao.addEventListener("click", () => {
     perfilLoginSelecionado = botao.dataset.loginPerfil;
