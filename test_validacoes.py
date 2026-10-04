@@ -137,6 +137,105 @@ def testar_solicitacao_barbeiro_exige_aprovacao_administrativa(tmp_path, monkeyp
     ).status_code == 401
 
 
+def testar_administrador_lista_contas_separadas_sem_hashes(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    barbeiro = app_module.app.test_client()
+
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    assert barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 202
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
+    assert administrador.post(
+        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+    ).status_code == 200
+
+    assert cliente.get("/api/contas").status_code == 403
+    contas = administrador.get("/api/contas")
+    assert contas.status_code == 200
+    assert [conta["email"] for conta in contas.json["clientes"]] == ["maria@teste.com"]
+    assert {conta["email"] for conta in contas.json["barbeiros"]} == {
+        app_module.ADMIN_EMAIL,
+        "joao@teste.com",
+    }
+    assert all(
+        "senha_hash" not in conta
+        for grupo in (contas.json["clientes"], contas.json["barbeiros"])
+        for conta in grupo
+    )
+
+
+def testar_administrador_exclui_contas_e_revoga_sessoes(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    barbeiro = app_module.app.test_client()
+    administrador = app_module.app.test_client()
+
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
+    assert administrador.post(
+        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+    ).status_code == 200
+    assert barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 200
+
+    contas = administrador.get("/api/contas").json
+    id_cliente = contas["clientes"][0]["id"]
+    conta_barbeiro = next(conta for conta in contas["barbeiros"] if conta["email"] == "joao@teste.com")
+    id_admin = next(conta["id"] for conta in contas["barbeiros"] if conta["administrador"])
+
+    assert cliente.delete(f"/api/contas/clientes/{id_cliente}").status_code == 403
+    assert administrador.delete(f"/api/contas/barbeiros/{id_admin}").status_code == 403
+    assert administrador.delete(f"/api/contas/clientes/{id_cliente}").status_code == 200
+    assert administrador.delete(f"/api/contas/barbeiros/{conta_barbeiro['id']}").status_code == 200
+    assert cliente.get("/api/sessao").json == {"autenticado": False}
+    assert barbeiro.get("/api/sessao").json == {"autenticado": False}
+
+
 def testar_login_rejeita_senha_incorreta(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()

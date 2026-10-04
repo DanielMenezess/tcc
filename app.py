@@ -274,6 +274,9 @@ def login():
 def sessao_atual():
     if not session.get("tipo"):
         return jsonify(autenticado=False)
+    if not conta_ativa():
+        session.clear()
+        return jsonify(autenticado=False)
     dados_sessao = {
         "autenticado": True,
         "tipo": session["tipo"],
@@ -284,8 +287,34 @@ def sessao_atual():
     return jsonify(dados_sessao)
 
 
+def conta_ativa():
+    tipo = session.get("tipo")
+    tabela = TABELAS.get(tipo)
+    if not tabela or not session.get("usuario_id"):
+        return False
+
+    with sqlite3.connect(DB_PATH) as db:
+        conta = db.execute(
+            f"SELECT email FROM {tabela} WHERE id = ?",
+            (session["usuario_id"],),
+        ).fetchone()
+    return conta is not None
+
+
 def exigir_administrador():
-    return session.get("tipo") == "barbeiros" and session.get("administrador") is True
+    if (
+        session.get("tipo") != "barbeiros"
+        or session.get("administrador") is not True
+        or not conta_ativa()
+    ):
+        return False
+
+    with sqlite3.connect(DB_PATH) as db:
+        conta = db.execute(
+            "SELECT email FROM barbeiro WHERE id = ?",
+            (session["usuario_id"],),
+        ).fetchone()
+    return conta is not None and conta[0] == ADMIN_EMAIL
 
 
 @app.get("/api/solicitacoes-barbeiros")
@@ -342,6 +371,48 @@ def recusar_solicitacao_barbeiro(solicitacao_id):
     return "", 204
 
 
+@app.get("/api/contas")
+def listar_contas():
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode consultar contas."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        clientes = [dict(row) for row in db.execute(
+            "SELECT id, nome, email, telefone FROM cliente ORDER BY nome, id"
+        )]
+        barbeiros = [dict(row) for row in db.execute(
+            "SELECT id, nome, email, telefone FROM barbeiro ORDER BY nome, id"
+        )]
+    for barbeiro in barbeiros:
+        barbeiro["administrador"] = barbeiro["email"] == ADMIN_EMAIL
+    return jsonify(clientes=clientes, barbeiros=barbeiros)
+
+
+@app.delete("/api/contas/<tipo>/<int:conta_id>")
+def excluir_conta(tipo, conta_id):
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode excluir contas."), 403
+
+    tabela = TABELAS.get(tipo)
+    if not tabela:
+        return jsonify(erro="Tipo de conta inválido."), 404
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("BEGIN IMMEDIATE")
+        conta = db.execute(
+            f"SELECT email FROM {tabela} WHERE id = ?",
+            (conta_id,),
+        ).fetchone()
+        if not conta:
+            return jsonify(erro="Conta não encontrada."), 404
+        if tipo == "barbeiros" and conta[0] == ADMIN_EMAIL:
+            return jsonify(erro="A conta administradora não pode ser excluída."), 403
+        db.execute(f"DELETE FROM {tabela} WHERE id = ?", (conta_id,))
+
+    return jsonify(ok=True), 200
+
+
 @app.post("/api/sair")
 def sair():
     session.clear()
@@ -370,7 +441,7 @@ def listar_servicos():
 
 @app.get("/api/agendamentos")
 def listar_agendamentos_barbeiro():
-    if session.get("tipo") != "barbeiros":
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem consultar agendamentos."), 403
 
     data_texto = request.args.get("data", "")
@@ -399,7 +470,7 @@ def listar_agendamentos_barbeiro():
 
 @app.post("/api/agendamentos")
 def criar_agendamento():
-    if session.get("tipo") != "clientes":
+    if session.get("tipo") != "clientes" or not conta_ativa():
         return jsonify(erro="Apenas clientes podem confirmar agendamentos."), 403
 
     dados = request.get_json(silent=True) or {}
@@ -495,7 +566,7 @@ def criar_agendamento():
 
 @app.post("/api/servicos")
 def criar_servico():
-    if session.get("tipo") != "barbeiros":
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem gerenciar serviços."), 403
 
     dados, erros = validar_servico(request.get_json(silent=True) or {})
@@ -517,7 +588,7 @@ def criar_servico():
 
 @app.delete("/api/servicos/<int:servico_id>")
 def remover_servico(servico_id):
-    if session.get("tipo") != "barbeiros":
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem gerenciar serviços."), 403
 
     with sqlite3.connect(DB_PATH) as db:

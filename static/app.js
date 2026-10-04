@@ -20,6 +20,12 @@ const painelAdicionar = document.getElementById("painel-adicionar");
 const painelSolicitacoesBarbeiros = document.getElementById("painel-solicitacoes-barbeiros");
 const listaSolicitacoesBarbeiros = document.getElementById("lista-solicitacoes-barbeiros");
 const totalSolicitacoesBarbeiros = document.getElementById("total-solicitacoes-barbeiros");
+const painelContasAdministrador = document.getElementById("painel-contas-administrador");
+const mensagemContasAdministrador = document.getElementById("mensagem-contas-administrador");
+const listaContasClientes = document.getElementById("lista-contas-clientes");
+const totalContasClientes = document.getElementById("total-contas-clientes");
+const listaContasBarbeiros = document.getElementById("lista-contas-barbeiros");
+const totalContasBarbeiros = document.getElementById("total-contas-barbeiros");
 const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
 const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
@@ -194,6 +200,7 @@ function mostrarServicos(usuario) {
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
+  painelContasAdministrador.hidden = !usuario.administrador;
   painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
@@ -226,7 +233,84 @@ function mostrarServicos(usuario) {
   } else {
     campoDataAgendaBarbeiro.value = dataLocalAtual();
     carregarAgendamentosBarbeiro();
-    if (usuario.administrador) carregarSolicitacoesBarbeiros();
+    if (usuario.administrador) {
+      carregarSolicitacoesBarbeiros();
+      carregarContasAdministrador();
+    }
+  }
+}
+
+function renderizarContas(tipo, contas, listaContas, totalContas) {
+  listaContas.replaceChildren();
+  totalContas.textContent = `${contas.length} ${contas.length === 1 ? "conta" : "contas"}`;
+
+  if (contas.length === 0) {
+    const vazio = document.createElement("li");
+    vazio.className = "estado-lista";
+    vazio.textContent = "Nenhuma conta cadastrada.";
+    listaContas.append(vazio);
+    return;
+  }
+
+  contas.forEach((conta) => {
+    const item = document.createElement("li");
+    item.className = "servico";
+    const informacoes = document.createElement("div");
+    informacoes.className = "servico-info";
+    const nome = document.createElement("strong");
+    nome.textContent = conta.nome;
+    const dados = document.createElement("span");
+    dados.className = "servico-detalhe detalhe-conta";
+    dados.textContent = ` · ${conta.email} · ${formatarTelefone(conta.telefone)}`;
+    informacoes.append(nome, dados);
+    item.append(informacoes);
+
+    if (conta.administrador) {
+      const selo = document.createElement("span");
+      selo.className = "selo-administrador";
+      selo.textContent = "Administrador";
+      item.append(selo);
+    } else {
+      const excluir = document.createElement("button");
+      excluir.type = "button";
+      excluir.className = "botao-remover-conta";
+      excluir.dataset.tipo = tipo;
+      excluir.dataset.id = conta.id;
+      excluir.setAttribute("aria-label", `Excluir conta de ${conta.nome}`);
+      excluir.textContent = "Excluir";
+      item.append(excluir);
+    }
+    listaContas.append(item);
+  });
+}
+
+async function carregarContasAdministrador() {
+  listaContasClientes.replaceChildren();
+  listaContasBarbeiros.replaceChildren();
+  totalContasClientes.textContent = "";
+  totalContasBarbeiros.textContent = "";
+  [listaContasClientes, listaContasBarbeiros].forEach((listaContas) => {
+    const carregando = document.createElement("li");
+    carregando.className = "estado-lista";
+    carregando.textContent = "Carregando contas...";
+    listaContas.append(carregando);
+  });
+
+  try {
+    const resposta = await fetch("/api/contas");
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar contas.");
+    renderizarContas("clientes", corpo.clientes, listaContasClientes, totalContasClientes);
+    renderizarContas("barbeiros", corpo.barbeiros, listaContasBarbeiros, totalContasBarbeiros);
+  } catch {
+    totalContasClientes.textContent = "";
+    totalContasBarbeiros.textContent = "";
+    [listaContasClientes, listaContasBarbeiros].forEach((listaContas) => {
+      const erro = document.createElement("li");
+      erro.className = "estado-lista";
+      erro.textContent = "Não foi possível carregar as contas.";
+      listaContas.replaceChildren(erro);
+    });
   }
 }
 
@@ -660,6 +744,30 @@ listaSolicitacoesBarbeiros.addEventListener("click", async (evento) => {
     item.querySelectorAll("button").forEach((acao) => {
       acao.disabled = false;
     });
+  }
+});
+
+painelContasAdministrador.addEventListener("click", async (evento) => {
+  const botao = evento.target.closest(".botao-remover-conta");
+  if (!botao) return;
+
+  if (!window.confirm("Deseja excluir esta conta? Esta ação não pode ser desfeita.")) return;
+
+  botao.disabled = true;
+  mensagemContasAdministrador.textContent = "";
+  mensagemContasAdministrador.className = "mensagem";
+  try {
+    const resposta = await fetch(`/api/contas/${botao.dataset.tipo}/${botao.dataset.id}`, {
+      method: "DELETE",
+    });
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível excluir a conta.");
+    mensagemContasAdministrador.textContent = "Conta excluída.";
+    mensagemContasAdministrador.classList.add("sucesso");
+    await carregarContasAdministrador();
+  } catch (erro) {
+    mensagemContasAdministrador.textContent = erro.message;
+    botao.disabled = false;
   }
 });
 
