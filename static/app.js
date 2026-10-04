@@ -24,8 +24,10 @@ const painelContasAdministrador = document.getElementById("painel-contas-adminis
 const mensagemContasAdministrador = document.getElementById("mensagem-contas-administrador");
 const listaContasClientes = document.getElementById("lista-contas-clientes");
 const totalContasClientes = document.getElementById("total-contas-clientes");
+const buscaContasClientes = document.getElementById("buscar-contas-clientes");
 const listaContasBarbeiros = document.getElementById("lista-contas-barbeiros");
 const totalContasBarbeiros = document.getElementById("total-contas-barbeiros");
+const buscaContasBarbeiros = document.getElementById("buscar-contas-barbeiros");
 const abasContas = Array.from(document.querySelectorAll("[data-aba-contas]"));
 const painelContasClientes = document.getElementById("grupo-contas-clientes");
 const painelContasBarbeiros = document.getElementById("grupo-contas-barbeiros");
@@ -70,6 +72,8 @@ let dataSelecionada = null;
 let horarioSelecionado = null;
 let agendamentoConfirmado = false;
 let confirmandoAgendamento = false;
+let contasClientes = [];
+let contasBarbeiros = [];
 
 function atualizarBotaoTema(tema) {
   const temaEscuro = tema === "escuro";
@@ -303,14 +307,42 @@ async function carregarHistoricoServicos() {
   }
 }
 
-function renderizarContas(tipo, contas, listaContas, totalContas) {
+function normalizarBuscaConta(valor) {
+  return String(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+function filtrarContas(tipo) {
+  const clientes = tipo === "clientes";
+  const contas = clientes ? contasClientes : contasBarbeiros;
+  const busca = clientes ? buscaContasClientes.value : buscaContasBarbeiros.value;
+  const termo = normalizarBuscaConta(busca);
+  const digitosBusca = termo.replace(/\D/g, "");
+  const filtradas = contas.filter((conta) => {
+    const correspondeTexto = [conta.nome, conta.email, conta.telefone]
+      .some((valor) => normalizarBuscaConta(valor).includes(termo));
+    const correspondeTelefone = digitosBusca.length > 0
+      && conta.telefone.replace(/\D/g, "").includes(digitosBusca);
+    return correspondeTexto || correspondeTelefone;
+  });
+  const listaContas = clientes ? listaContasClientes : listaContasBarbeiros;
+  const totalContas = clientes ? totalContasClientes : totalContasBarbeiros;
+  renderizarContas(tipo, filtradas, listaContas, totalContas, contas, Boolean(termo));
+}
+
+function renderizarContas(tipo, contas, listaContas, totalContas, todasContas, buscaAtiva) {
   listaContas.replaceChildren();
-  totalContas.textContent = `${contas.length} ${contas.length === 1 ? "conta" : "contas"}`;
+  totalContas.textContent = buscaAtiva
+    ? `${contas.length} ${contas.length === 1 ? "resultado" : "resultados"}`
+    : `${todasContas.length} ${todasContas.length === 1 ? "conta" : "contas"}`;
 
   if (contas.length === 0) {
     const vazio = document.createElement("li");
     vazio.className = "estado-lista";
-    vazio.textContent = "Nenhuma conta cadastrada.";
+    vazio.textContent = buscaAtiva ? "Nenhuma conta encontrada." : "Nenhuma conta cadastrada.";
     listaContas.append(vazio);
     return;
   }
@@ -347,6 +379,9 @@ function renderizarContas(tipo, contas, listaContas, totalContas) {
   });
 }
 
+buscaContasClientes.addEventListener("input", () => filtrarContas("clientes"));
+buscaContasBarbeiros.addEventListener("input", () => filtrarContas("barbeiros"));
+
 function selecionarAbaContas(tipo) {
   const clientesSelecionados = tipo === "clientes";
   painelContasClientes.hidden = !clientesSelecionados;
@@ -379,8 +414,10 @@ async function carregarContasAdministrador() {
     const resposta = await fetch("/api/contas");
     const corpo = await resposta.json();
     if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar contas.");
-    renderizarContas("clientes", corpo.clientes, listaContasClientes, totalContasClientes);
-    renderizarContas("barbeiros", corpo.barbeiros, listaContasBarbeiros, totalContasBarbeiros);
+    contasClientes = corpo.clientes;
+    contasBarbeiros = corpo.barbeiros;
+    filtrarContas("clientes");
+    filtrarContas("barbeiros");
   } catch {
     totalContasClientes.textContent = "";
     totalContasBarbeiros.textContent = "";

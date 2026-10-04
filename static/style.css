@@ -476,6 +476,10 @@ body {
   text-transform: uppercase;
 }
 
+.campo-busca-conta {
+  margin: 12px 0;
+}
+
 .detalhe-conta {
   display: block;
   margin-top: 3px;
