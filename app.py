@@ -21,7 +21,7 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 NOME_Barbeiro_RE = re.compile(r"^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$")
 ADMIN_NOME = "Daniel Gabriel"
 ADMIN_EMAIL = "danielgabriel@gmail.com"
-ADMIN_TELEFONE = "1111111111"
+ADMIN_TELEFONE = "11111111111"
 ADMIN_SENHA = "123456"
 ADMIN_SENHA_HASH = generate_password_hash(ADMIN_SENHA)
 
@@ -146,6 +146,8 @@ def cadastrar(tipo):
 
     entrada = request.get_json(silent=True) or {}
     dados, erros = validar(entrada, tipo=tipo)
+    if dados["telefone"] == ADMIN_TELEFONE:
+        erros["telefone"] = "Este telefone é reservado para a conta administradora."
     senha = str(entrada.get("senha", ""))
     confirmar_senha = str(entrada.get("confirmar_senha", ""))
     if len(senha) < 6:

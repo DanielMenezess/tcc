@@ -62,7 +62,7 @@ def testar_administrador_e_criado_novamente_com_o_banco(tmp_path, monkeypatch):
             "SELECT nome, email, telefone FROM barbeiro WHERE email = ?",
             ("danielgabriel@gmail.com",),
         ).fetchone()
-    assert conta == ("Daniel Gabriel", "danielgabriel@gmail.com", "1111111111")
+    assert conta == ("Daniel Gabriel", "danielgabriel@gmail.com", "11111111111")
 
     caminho_db.unlink()
     app_module.init_db()
@@ -71,12 +71,35 @@ def testar_administrador_e_criado_novamente_com_o_banco(tmp_path, monkeypatch):
         "/api/login",
         json={
             "tipo": "barbeiros",
-            "identificador": "(11) 1111-1111",
+            "identificador": "(11) 11111-1111",
             "senha": "123456",
         },
     )
     assert resposta.status_code == 200
     assert administrador_apos_recriacao.get("/api/sessao").json["administrador"] is True
+
+
+def testar_telefone_administrador_nao_pode_ser_usado_por_outra_conta(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+
+    for tipo, email in (
+        ("clientes", "cliente@teste.com"),
+        ("barbeiros", "barbeiro@teste.com"),
+    ):
+        resposta = cliente.post(
+            f"/api/{tipo}",
+            json={
+                "nome": "Maria da Silva" if tipo == "clientes" else "João da Silva",
+                "email": email,
+                "telefone": "(11) 11111-1111",
+                "senha": "senha-segura-123",
+                "confirmar_senha": "senha-segura-123",
+            },
+        )
+        assert resposta.status_code == 400
+        assert "telefone" in resposta.json["erros"]
 
 
 def testar_solicitacao_barbeiro_exige_aprovacao_administrativa(tmp_path, monkeypatch):
