@@ -20,6 +20,7 @@ const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
+const nomeBarbeiroValido = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$/;
 let perfilSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
@@ -270,6 +271,18 @@ formCadastro.addEventListener("submit", async (evento) => {
   botaoCadastro.disabled = true;
 
   const dados = Object.fromEntries(new FormData(formCadastro));
+  const nome = String(dados.nome || "").trim();
+
+  if (perfilSelecionado === "barbeiros" && !nomeBarbeiroValido.test(nome)) {
+    mensagemCadastro.textContent = "Use letras maiúsculas no início de cada nome e evite números ou símbolos.";
+    mensagemCadastro.className = "mensagem erro";
+    const campo = formCadastro.elements.nome;
+    campo.classList.add("invalido");
+    const detalhe = formCadastro.querySelector('[data-erro="nome"]');
+    if (detalhe) detalhe.textContent = "Use letras maiúsculas no início de cada nome e evite números ou símbolos.";
+    botaoCadastro.disabled = false;
+    return;
+  }
 
   try {
     const resposta = await fetch(`/api/${perfilSelecionado}`, {

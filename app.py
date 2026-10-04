@@ -16,6 +16,7 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
 TABELAS = {"clientes": "cliente", "barbeiros": "barbeiro"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+NOME_Barbeiro_RE = re.compile(r"^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$")
 
 
 def init_db():
@@ -78,14 +79,18 @@ def validar_servico(dados):
     return {"nome": nome, "duracao": duracao, "preco": preco}, erros
 
 
-def validar(dados):
+def validar(dados, tipo=None):
     nome = " ".join(str(dados.get("nome", "")).split())
     email = str(dados.get("email", "")).strip().lower()
     telefone = re.sub(r"\D", "", str(dados.get("telefone", "")))
 
     erros = {}
-    if len(nome) < 3:
+    if tipo == "barbeiros":
+        if not nome or not NOME_Barbeiro_RE.fullmatch(nome):
+            erros["nome"] = "Use letras maiúsculas no início de cada nome e evite números ou símbolos."
+    elif len(nome) < 3:
         erros["nome"] = "Informe o nome completo."
+
     if not EMAIL_RE.match(email):
         erros["email"] = "Informe um e-mail válido, como nome@exemplo.com."
     if len(telefone) not in (10, 11):
@@ -99,7 +104,7 @@ def cadastrar(tipo):
     if not tabela:
         return jsonify(erro="Tipo de cadastro inexistente."), 404
 
-    dados, erros = validar(request.get_json(silent=True) or {})
+    dados, erros = validar(request.get_json(silent=True) or {}, tipo=tipo)
     if erros:
         return jsonify(erros=erros), 400
 
