@@ -264,9 +264,9 @@ function renderizarServicos(servicos) {
       escolher.className = "botao-escolher";
       escolher.dataset.id = servico.id;
       const selecionado = String(servico.id) === servicoSelecionadoId;
-      escolher.textContent = selecionado ? "Selecionado" : "Escolher";
+      escolher.textContent = selecionado ? "Desselecionar" : "Escolher";
       escolher.setAttribute("aria-pressed", String(selecionado));
-      escolher.setAttribute("aria-label", `Escolher ${servico.nome}`);
+      escolher.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${servico.nome}`);
       item.append(escolher);
     } else if (tipoUsuario === "barbeiros") {
       const remover = document.createElement("button");
@@ -313,9 +313,9 @@ function renderizarBarbeiros(barbeiros) {
     escolher.className = "botao-escolher";
     escolher.dataset.id = barbeiro.id;
     const selecionado = String(barbeiro.id) === barbeiroSelecionadoId;
-    escolher.textContent = selecionado ? "Selecionado" : "Escolher";
+    escolher.textContent = selecionado ? "Desselecionar" : "Escolher";
     escolher.setAttribute("aria-pressed", String(selecionado));
-    escolher.setAttribute("aria-label", `Escolher ${barbeiro.nome}`);
+    escolher.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${barbeiro.nome}`);
 
     item.append(informacoes, escolher);
     listaBarbeiros.append(item);
@@ -483,12 +483,16 @@ formLogin.addEventListener("submit", async (evento) => {
 lista.addEventListener("click", async (evento) => {
   const botaoEscolher = evento.target.closest(".botao-escolher");
   if (botaoEscolher) {
-    servicoSelecionadoId = botaoEscolher.dataset.id;
-    servicoSelecionadoNome = botaoEscolher.closest(".servico").querySelector("strong").textContent;
+    const deselecionando = botaoEscolher.dataset.id === servicoSelecionadoId;
+    servicoSelecionadoId = deselecionando ? null : botaoEscolher.dataset.id;
+    servicoSelecionadoNome = deselecionando
+      ? null
+      : botaoEscolher.closest(".servico").querySelector("strong").textContent;
     lista.querySelectorAll(".botao-escolher").forEach((botao) => {
-      const selecionado = botao === botaoEscolher;
-      botao.textContent = selecionado ? "Selecionado" : "Escolher";
+      const selecionado = botao.dataset.id === servicoSelecionadoId;
+      botao.textContent = selecionado ? "Desselecionar" : "Escolher";
       botao.setAttribute("aria-pressed", String(selecionado));
+      botao.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${botao.closest(".servico").querySelector("strong").textContent}`);
     });
     selecaoAgendamentoAlterada();
     return;
@@ -513,12 +517,16 @@ listaBarbeiros.addEventListener("click", (evento) => {
   const botao = evento.target.closest(".botao-escolher");
   if (!botao) return;
 
-  barbeiroSelecionadoId = botao.dataset.id;
-  barbeiroSelecionadoNome = botao.closest(".servico").querySelector("strong").textContent;
+  const deselecionando = botao.dataset.id === barbeiroSelecionadoId;
+  barbeiroSelecionadoId = deselecionando ? null : botao.dataset.id;
+  barbeiroSelecionadoNome = deselecionando
+    ? null
+    : botao.closest(".servico").querySelector("strong").textContent;
   listaBarbeiros.querySelectorAll(".botao-escolher").forEach((item) => {
-    const selecionado = item === botao;
-    item.textContent = selecionado ? "Selecionado" : "Escolher";
+    const selecionado = item.dataset.id === barbeiroSelecionadoId;
+    item.textContent = selecionado ? "Desselecionar" : "Escolher";
     item.setAttribute("aria-pressed", String(selecionado));
+    item.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${item.closest(".servico").querySelector("strong").textContent}`);
   });
   selecaoAgendamentoAlterada();
 });
