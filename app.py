@@ -266,6 +266,37 @@ def listar_servicos():
     return jsonify(servicos=servicos)
 
 
+@app.get("/api/agendamentos")
+def listar_agendamentos_barbeiro():
+    if session.get("tipo") != "barbeiros":
+        return jsonify(erro="Apenas barbeiros podem consultar agendamentos."), 403
+
+    data_texto = request.args.get("data", "")
+    try:
+        data_agendamento = date.fromisoformat(data_texto)
+    except ValueError:
+        return jsonify(erro="Escolha uma data válida."), 400
+    if data_agendamento.isoformat() != data_texto:
+        return jsonify(erro="Escolha uma data válida."), 400
+
+    ids_barbeiro = [str(session["usuario_id"])]
+    if session.get("nome") == "João":
+        ids_barbeiro.append("fixo-joao")
+    marcadores = ", ".join("?" for _ in ids_barbeiro)
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        agendamentos = [dict(row) for row in db.execute(
+            "SELECT a.id, a.servico_nome AS servico, a.horario, a.duracao, a.preco, "
+            "c.nome AS cliente FROM agendamento AS a "
+            "LEFT JOIN cliente AS c ON c.id = a.cliente_id "
+            f"WHERE a.data_agendamento = ? AND a.barbeiro_id IN ({marcadores}) "
+            "ORDER BY a.horario, a.id",
+            (data_texto, *ids_barbeiro),
+        )]
+    return jsonify(agendamentos=agendamentos)
+
+
 @app.post("/api/agendamentos")
 def criar_agendamento():
     if session.get("tipo") != "clientes":

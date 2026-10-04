@@ -15,6 +15,7 @@ const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
+const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
 const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
 const listaBarbeiros = document.getElementById("lista-barbeiros");
@@ -26,6 +27,9 @@ const painelEscolherHorario = document.getElementById("painel-escolher-horario")
 const listaHorarios = document.getElementById("lista-horarios");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
 const faixaHorarios = document.getElementById("faixa-horarios");
+const campoDataAgendaBarbeiro = document.getElementById("data-agenda-barbeiro");
+const listaAgendamentos = document.getElementById("lista-agendamentos");
+const totalAgendamentos = document.getElementById("total-agendamentos");
 const painelConfirmarAgendamento = document.getElementById("painel-confirmar-agendamento");
 const resumoAgendamento = document.getElementById("resumo-agendamento");
 const mensagemAgendamento = document.getElementById("mensagem-agendamento");
@@ -149,6 +153,7 @@ function mostrarServicos(usuario) {
   telaLogin.hidden = true;
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
+  painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
   painelEscolherHorario.hidden = true;
@@ -175,7 +180,64 @@ function mostrarServicos(usuario) {
     ? "Área do barbeiro"
     : "Área do cliente";
   carregarServicos();
-  if (tipoUsuario === "clientes") carregarBarbeiros();
+  if (tipoUsuario === "clientes") {
+    carregarBarbeiros();
+  } else {
+    campoDataAgendaBarbeiro.value = dataLocalAtual();
+    carregarAgendamentosBarbeiro();
+  }
+}
+
+function renderizarAgendamentosBarbeiro(agendamentos) {
+  listaAgendamentos.replaceChildren();
+  totalAgendamentos.textContent = `${agendamentos.length} ${agendamentos.length === 1 ? "agendamento" : "agendamentos"}`;
+
+  if (agendamentos.length === 0) {
+    const vazio = document.createElement("li");
+    vazio.className = "estado-lista";
+    vazio.textContent = "Nenhum agendamento para esta data.";
+    listaAgendamentos.append(vazio);
+    return;
+  }
+
+  agendamentos.forEach((agendamento) => {
+    const item = document.createElement("li");
+    item.className = "servico";
+
+    const informacoes = document.createElement("div");
+    informacoes.className = "servico-info";
+    const titulo = document.createElement("strong");
+    titulo.textContent = `${agendamento.horario} — ${agendamento.servico}`;
+    const detalhe = document.createElement("span");
+    detalhe.className = "servico-detalhe";
+    detalhe.textContent = ` · ${agendamento.cliente || "Cliente não encontrado"} · ${agendamento.duracao} min · R$ ${formatarPreco.format(agendamento.preco)}`;
+    informacoes.append(titulo, detalhe);
+    item.append(informacoes);
+    listaAgendamentos.append(item);
+  });
+}
+
+async function carregarAgendamentosBarbeiro() {
+  listaAgendamentos.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando agendamentos...";
+  listaAgendamentos.append(carregando);
+  totalAgendamentos.textContent = "";
+
+  try {
+    const data = encodeURIComponent(campoDataAgendaBarbeiro.value);
+    const resposta = await fetch(`/api/agendamentos?data=${data}`);
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar agendamentos.");
+    renderizarAgendamentosBarbeiro(corpo.agendamentos);
+  } catch {
+    totalAgendamentos.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar os agendamentos. Tente novamente.";
+    listaAgendamentos.replaceChildren(erro);
+  }
 }
 
 seletorPerfil.forEach((botao) => {
@@ -192,6 +254,7 @@ seletorPerfil.forEach((botao) => {
 
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
+campoDataAgendaBarbeiro.addEventListener("change", carregarAgendamentosBarbeiro);
 campoDataAgendamento.addEventListener("change", () => {
   const hoje = dataLocalAtual();
   campoDataAgendamento.min = hoje;

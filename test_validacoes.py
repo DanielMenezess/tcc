@@ -151,6 +151,74 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
         assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 1
 
 
+def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    barbeiro = app_module.app.test_client()
+    outro_barbeiro = app_module.app.test_client()
+    cliente = app_module.app.test_client()
+
+    barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    outro_barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "Carlos Souza",
+            "email": "carlos@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41933333333",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+
+    hoje = date.today().isoformat()
+    amanha = (date.today() + timedelta(days=1)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        db.executemany(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (1, 1, "Corte", "1", "João da Silva", hoje, "09:00", 30, 35),
+                (1, 2, "Barba", "1", "João da Silva", amanha, "10:00", 20, 25),
+                (1, 3, "Corte + Barba", "2", "Carlos Souza", hoje, "11:00", 50, 55),
+            ],
+        )
+
+    resposta = barbeiro.get(f"/api/agendamentos?data={hoje}")
+
+    assert resposta.status_code == 200
+    assert resposta.json["agendamentos"] == [
+        {
+            "id": 1,
+            "servico": "Corte",
+            "horario": "09:00",
+            "duracao": 30,
+            "preco": 35.0,
+            "cliente": "Maria da Silva",
+        }
+    ]
+    assert cliente.get(f"/api/agendamentos?data={hoje}").status_code == 403
+
+
 def testar_agendamento_rejeita_horario_sobreposto(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()

@@ -89,6 +89,21 @@
         </div>
         <button id="botao-sair" class="botao-sair" type="button">Sair da conta</button>
       </div>
+      <section id="painel-agenda-barbeiro" class="painel painel-formulario" aria-labelledby="titulo-agenda-barbeiro" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agenda-barbeiro">Agenda do dia</h2>
+          <span id="total-agendamentos" class="contador" aria-live="polite"></span>
+        </div>
+        <div class="campos-formulario">
+          <div class="campo campo-completo">
+            <label for="data-agenda-barbeiro">Data dos agendamentos</label>
+            <input id="data-agenda-barbeiro" name="data-agenda-barbeiro" type="date">
+          </div>
+        </div>
+        <ul id="lista-agendamentos" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Selecione uma data para consultar a agenda.</li>
+        </ul>
+      </section>
       <section class="painel" aria-labelledby="titulo-servicos">
         <p class="texto-introdutorio">Pagos no atendimento</p>
         <div class="cabecalho-painel">
