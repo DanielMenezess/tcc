@@ -11,7 +11,10 @@ const botaoSair = document.getElementById("botao-sair");
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
+const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
+const listaBarbeiros = document.getElementById("lista-barbeiros");
+const totalBarbeiros = document.getElementById("total-barbeiros");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
@@ -20,6 +23,7 @@ const formatarPreco = new Intl.NumberFormat("pt-BR", {
 let perfilSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
+let barbeiroSelecionadoId = null;
 
 function formatarTelefone(digitos) {
   const numero = digitos.replace(/\D/g, "").slice(0, 11);
@@ -64,13 +68,16 @@ function mostrarServicos(usuario) {
   telaCadastro.hidden = true;
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
+  painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
   servicoSelecionadoId = null;
+  barbeiroSelecionadoId = null;
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
     ? "Área do barbeiro"
     : "Área do cliente";
   carregarServicos();
+  if (tipoUsuario === "clientes") carregarBarbeiros();
 }
 
 seletorPerfil.forEach((botao) => {
@@ -149,6 +156,55 @@ async function carregarServicos() {
   } catch {
     total.textContent = "";
     exibirEstado("Não foi possível carregar os serviços. Tente novamente.");
+  }
+}
+
+function renderizarBarbeiros(barbeiros) {
+  listaBarbeiros.replaceChildren();
+  totalBarbeiros.textContent = `${barbeiros.length} ${barbeiros.length === 1 ? "barbeiro" : "barbeiros"}`;
+
+  barbeiros.forEach((barbeiro) => {
+    const item = document.createElement("li");
+    item.className = "servico";
+
+    const informacoes = document.createElement("div");
+    informacoes.className = "servico-info";
+    const nome = document.createElement("strong");
+    nome.textContent = barbeiro.nome;
+    informacoes.append(nome);
+
+    const escolher = document.createElement("button");
+    escolher.type = "button";
+    escolher.className = "botao-escolher";
+    escolher.dataset.id = barbeiro.id;
+    const selecionado = String(barbeiro.id) === barbeiroSelecionadoId;
+    escolher.textContent = selecionado ? "Selecionado" : "Escolher";
+    escolher.setAttribute("aria-pressed", String(selecionado));
+    escolher.setAttribute("aria-label", `Escolher ${barbeiro.nome}`);
+
+    item.append(informacoes, escolher);
+    listaBarbeiros.append(item);
+  });
+}
+
+async function carregarBarbeiros() {
+  listaBarbeiros.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando barbeiros...";
+  listaBarbeiros.append(carregando);
+
+  try {
+    const resposta = await fetch("/api/barbeiros");
+    if (!resposta.ok) throw new Error("Falha ao carregar barbeiros.");
+    const dados = await resposta.json();
+    renderizarBarbeiros(dados.barbeiros);
+  } catch {
+    totalBarbeiros.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar os barbeiros. Tente novamente.";
+    listaBarbeiros.replaceChildren(erro);
   }
 }
 
@@ -265,6 +321,18 @@ lista.addEventListener("click", async (evento) => {
     mensagemServico.textContent = "Não foi possível remover o serviço. Tente novamente.";
     mensagemServico.className = "mensagem";
   }
+});
+
+listaBarbeiros.addEventListener("click", (evento) => {
+  const botao = evento.target.closest(".botao-escolher");
+  if (!botao) return;
+
+  barbeiroSelecionadoId = botao.dataset.id;
+  listaBarbeiros.querySelectorAll(".botao-escolher").forEach((item) => {
+    const selecionado = item === botao;
+    item.textContent = selecionado ? "Selecionado" : "Escolher";
+    item.setAttribute("aria-pressed", String(selecionado));
+  });
 });
 
 botaoSair.addEventListener("click", async () => {

@@ -136,6 +136,16 @@ def sair():
     return jsonify(ok=True)
 
 
+@app.get("/api/barbeiros")
+def listar_barbeiros():
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        barbeiros = [dict(row) for row in db.execute(
+            "SELECT id, nome FROM barbeiro ORDER BY nome"
+        )]
+    return jsonify(barbeiros=[{"id": "fixo-joao", "nome": "Joao"}, *barbeiros])
+
+
 @app.get("/api/servicos")
 def listar_servicos():
     with sqlite3.connect(DB_PATH) as db:
