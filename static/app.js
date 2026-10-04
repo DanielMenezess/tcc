@@ -27,6 +27,10 @@ const totalContasClientes = document.getElementById("total-contas-clientes");
 const listaContasBarbeiros = document.getElementById("lista-contas-barbeiros");
 const totalContasBarbeiros = document.getElementById("total-contas-barbeiros");
 const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
+const painelHistoricoServicos = document.getElementById("painel-historico-servicos");
+const tituloHistoricoServicos = document.getElementById("titulo-historico-servicos");
+const listaHistoricoServicos = document.getElementById("lista-historico-servicos");
+const totalHistoricoServicos = document.getElementById("total-historico-servicos");
 const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
 const listaBarbeiros = document.getElementById("lista-barbeiros");
@@ -202,6 +206,7 @@ function mostrarServicos(usuario) {
   painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
   painelContasAdministrador.hidden = !usuario.administrador;
   painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
+  painelHistoricoServicos.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
   painelEscolherHorario.hidden = true;
@@ -233,10 +238,65 @@ function mostrarServicos(usuario) {
   } else {
     campoDataAgendaBarbeiro.value = dataLocalAtual();
     carregarAgendamentosBarbeiro();
+    tituloHistoricoServicos.textContent = usuario.administrador
+      ? "Histórico de serviços de todos os barbeiros"
+      : "Meu histórico de serviços";
+    carregarHistoricoServicos();
     if (usuario.administrador) {
       carregarSolicitacoesBarbeiros();
       carregarContasAdministrador();
     }
+  }
+}
+
+function renderizarHistoricoServicos(historico, administrador) {
+  listaHistoricoServicos.replaceChildren();
+  totalHistoricoServicos.textContent = `${historico.length} ${historico.length === 1 ? "serviço realizado" : "serviços realizados"}`;
+
+  if (historico.length === 0) {
+    const vazio = document.createElement("li");
+    vazio.className = "estado-lista";
+    vazio.textContent = "Nenhum serviço concluído até agora.";
+    listaHistoricoServicos.append(vazio);
+    return;
+  }
+
+  historico.forEach((servico) => {
+    const item = document.createElement("li");
+    item.className = "servico";
+    const informacoes = document.createElement("div");
+    informacoes.className = "servico-info";
+    const titulo = document.createElement("strong");
+    titulo.textContent = administrador ? `${servico.barbeiro} — ${servico.servico}` : servico.servico;
+    const detalhes = document.createElement("span");
+    detalhes.className = "servico-detalhe detalhe-conta";
+    const [ano, mes, dia] = servico.data.split("-");
+    detalhes.textContent = `${dia}/${mes}/${ano} às ${servico.horario} · ${servico.cliente || "Cliente não encontrado"} · ${servico.duracao} min · R$ ${formatarPreco.format(servico.preco)}`;
+    informacoes.append(titulo, detalhes);
+    item.append(informacoes);
+    listaHistoricoServicos.append(item);
+  });
+}
+
+async function carregarHistoricoServicos() {
+  listaHistoricoServicos.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando histórico...";
+  listaHistoricoServicos.append(carregando);
+  totalHistoricoServicos.textContent = "";
+
+  try {
+    const resposta = await fetch("/api/historico-servicos");
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar histórico.");
+    renderizarHistoricoServicos(corpo.historico, corpo.administrador);
+  } catch {
+    totalHistoricoServicos.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar o histórico. Tente novamente.";
+    listaHistoricoServicos.replaceChildren(erro);
   }
 }
 

@@ -468,6 +468,48 @@ def listar_agendamentos_barbeiro():
     return jsonify(agendamentos=agendamentos)
 
 
+@app.get("/api/historico-servicos")
+def listar_historico_servicos():
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
+        return jsonify(erro="Apenas barbeiros podem consultar o histórico de serviços."), 403
+
+    agora = datetime.now()
+    hoje = agora.date().isoformat()
+    minuto_atual = agora.hour * 60 + agora.minute
+    administrador = exigir_administrador()
+    consulta = (
+        "SELECT a.id, a.data_agendamento AS data, a.horario, "
+        "a.servico_nome AS servico, a.duracao, a.preco, "
+        "a.barbeiro_nome AS barbeiro, c.nome AS cliente "
+        "FROM agendamento AS a LEFT JOIN cliente AS c ON c.id = a.cliente_id "
+        "WHERE a.data_agendamento <= ? "
+    )
+    parametros = [hoje]
+    if not administrador:
+        consulta += "AND a.barbeiro_id = ? "
+        parametros.append(str(session["usuario_id"]))
+    consulta += "ORDER BY a.data_agendamento DESC, a.horario DESC, a.id DESC"
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        agendamentos = [dict(row) for row in db.execute(consulta, parametros)]
+
+    historico = []
+    for agendamento in agendamentos:
+        if agendamento["data"] < hoje:
+            historico.append(agendamento)
+            continue
+        try:
+            hora, minuto = (int(parte) for parte in agendamento["horario"].split(":"))
+            minuto_fim = hora * 60 + minuto + int(agendamento["duracao"])
+        except (TypeError, ValueError):
+            continue
+        if minuto_fim <= minuto_atual:
+            historico.append(agendamento)
+
+    return jsonify(historico=historico, administrador=administrador)
+
+
 @app.post("/api/agendamentos")
 def criar_agendamento():
     if session.get("tipo") != "clientes" or not conta_ativa():

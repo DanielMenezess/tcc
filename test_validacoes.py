@@ -450,6 +450,100 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
     assert cliente.get(f"/api/agendamentos?data={hoje}").status_code == 403
 
 
+def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_para_admin(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    barbeiro = app_module.app.test_client()
+    outro_barbeiro = app_module.app.test_client()
+    cliente = app_module.app.test_client()
+
+    barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    outro_barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "Carlos Souza",
+            "email": "carlos@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacoes = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
+    for solicitacao in solicitacoes:
+        assert administrador.post(
+            f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+        ).status_code == 200
+
+    for sessao, email in ((barbeiro, "joao@teste.com"), (outro_barbeiro, "carlos@teste.com")):
+        assert sessao.post(
+            "/api/login",
+            json={"tipo": "barbeiros", "identificador": email, "senha": "senha-segura-123"},
+        ).status_code == 200
+
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41933333333",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    ontem = (date.today() - timedelta(days=1)).isoformat()
+    amanha = (date.today() + timedelta(days=1)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        id_cliente = db.execute(
+            "SELECT id FROM cliente WHERE email = ?", ("maria@teste.com",)
+        ).fetchone()[0]
+        id_barbeiro = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", ("joao@teste.com",)
+        ).fetchone()[0]
+        id_outro_barbeiro = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", ("carlos@teste.com",)
+        ).fetchone()[0]
+        id_admin = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+        db.executemany(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (id_cliente, 1, "Corte", str(id_barbeiro), "João da Silva", ontem, "09:00", 30, 35),
+                (id_cliente, 2, "Barba", str(id_barbeiro), "João da Silva", amanha, "10:00", 20, 25),
+                (id_cliente, 3, "Corte + Barba", str(id_outro_barbeiro), "Carlos Souza", ontem, "11:00", 50, 55),
+                (id_cliente, 4, "Sobrancelha", str(id_admin), "Daniel Gabriel", ontem, "12:00", 10, 15),
+            ],
+        )
+
+    historico_barbeiro = barbeiro.get("/api/historico-servicos")
+    assert historico_barbeiro.status_code == 200
+    assert [item["servico"] for item in historico_barbeiro.json["historico"]] == ["Corte"]
+    assert cliente.get("/api/historico-servicos").status_code == 403
+
+    historico_admin = administrador.get("/api/historico-servicos")
+    assert historico_admin.status_code == 200
+    assert historico_admin.json["administrador"] is True
+    assert {item["barbeiro"] for item in historico_admin.json["historico"]} == {
+        "João da Silva",
+        "Carlos Souza",
+        "Daniel Gabriel",
+    }
+    assert all(item["data"] == ontem for item in historico_admin.json["historico"])
+
+
 def testar_agendamento_rejeita_horario_sobreposto(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
