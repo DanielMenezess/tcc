@@ -111,7 +111,7 @@ body {
 }
 
 .texto-introdutorio {
-  margin: 7px 0 0;
+  margin: 12px 0 18px;
   color: var(--suave);
   font-size: 0.88rem;
 }
@@ -176,7 +176,7 @@ body {
 
 .lista-servicos {
   display: grid;
-  gap: 7px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
