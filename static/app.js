@@ -26,6 +26,9 @@ const listaContasClientes = document.getElementById("lista-contas-clientes");
 const totalContasClientes = document.getElementById("total-contas-clientes");
 const listaContasBarbeiros = document.getElementById("lista-contas-barbeiros");
 const totalContasBarbeiros = document.getElementById("total-contas-barbeiros");
+const abasContas = Array.from(document.querySelectorAll("[data-aba-contas]"));
+const painelContasClientes = document.getElementById("grupo-contas-clientes");
+const painelContasBarbeiros = document.getElementById("grupo-contas-barbeiros");
 const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
 const painelHistoricoServicos = document.getElementById("painel-historico-servicos");
 const tituloHistoricoServicos = document.getElementById("titulo-historico-servicos");
@@ -343,6 +346,22 @@ function renderizarContas(tipo, contas, listaContas, totalContas) {
     listaContas.append(item);
   });
 }
+
+function selecionarAbaContas(tipo) {
+  const clientesSelecionados = tipo === "clientes";
+  painelContasClientes.hidden = !clientesSelecionados;
+  painelContasBarbeiros.hidden = clientesSelecionados;
+  abasContas.forEach((aba) => {
+    const selecionada = aba.dataset.abaContas === tipo;
+    aba.classList.toggle("selecionada", selecionada);
+    aba.setAttribute("aria-selected", String(selecionada));
+    aba.tabIndex = selecionada ? 0 : -1;
+  });
+}
+
+abasContas.forEach((aba) => {
+  aba.addEventListener("click", () => selecionarAbaContas(aba.dataset.abaContas));
+});
 
 async function carregarContasAdministrador() {
   listaContasClientes.replaceChildren();

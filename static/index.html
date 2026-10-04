@@ -102,8 +102,12 @@
       <section id="painel-contas-administrador" class="painel" aria-labelledby="titulo-contas-administrador" hidden>
         <h2 id="titulo-contas-administrador">Contas cadastradas</h2>
         <p id="mensagem-contas-administrador" class="mensagem" aria-live="polite"></p>
+        <div class="abas-contas" role="tablist" aria-label="Tipo de conta">
+          <button id="aba-contas-clientes" class="aba-conta selecionada" type="button" role="tab" aria-selected="true" aria-controls="grupo-contas-clientes" data-aba-contas="clientes">Clientes</button>
+          <button id="aba-contas-barbeiros" class="aba-conta" type="button" role="tab" aria-selected="false" aria-controls="grupo-contas-barbeiros" data-aba-contas="barbeiros" tabindex="-1">Barbeiros</button>
+        </div>
         <div class="grupos-contas">
-          <div class="grupo-contas" aria-labelledby="titulo-contas-clientes">
+          <div id="grupo-contas-clientes" class="grupo-contas" role="tabpanel" aria-labelledby="aba-contas-clientes" tabindex="0">
             <div class="cabecalho-painel">
               <h3 id="titulo-contas-clientes">Clientes</h3>
               <span id="total-contas-clientes" class="contador" aria-live="polite"></span>
@@ -112,7 +116,7 @@
               <li class="estado-lista">Carregando contas...</li>
             </ul>
           </div>
-          <div class="grupo-contas" aria-labelledby="titulo-contas-barbeiros">
+          <div id="grupo-contas-barbeiros" class="grupo-contas" role="tabpanel" aria-labelledby="aba-contas-barbeiros" tabindex="0" hidden>
             <div class="cabecalho-painel">
               <h3 id="titulo-contas-barbeiros">Barbeiros</h3>
               <span id="total-contas-barbeiros" class="contador" aria-live="polite"></span>
