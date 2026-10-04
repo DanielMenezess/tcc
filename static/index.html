@@ -42,8 +42,13 @@
           </div>
           <div class="campo campo-completo">
             <label for="cadastro-senha">Senha</label>
-            <input id="cadastro-senha" name="senha" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+            <input id="cadastro-senha" name="senha" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
             <span class="erro" data-erro="senha"></span>
+          </div>
+          <div class="campo campo-completo">
+            <label for="cadastro-confirmar-senha">Confirme sua senha</label>
+            <input id="cadastro-confirmar-senha" name="confirmar_senha" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
+            <span class="erro" data-erro="confirmar_senha"></span>
           </div>
         </div>
         <p id="mensagem-cadastro" class="mensagem" aria-live="polite"></p>

@@ -112,10 +112,13 @@ def cadastrar(tipo):
     entrada = request.get_json(silent=True) or {}
     dados, erros = validar(entrada, tipo=tipo)
     senha = str(entrada.get("senha", ""))
-    if len(senha) < 8:
-        erros["senha"] = "A senha deve ter pelo menos 8 caracteres."
+    confirmar_senha = str(entrada.get("confirmar_senha", ""))
+    if len(senha) < 6:
+        erros["senha"] = "A senha deve ter pelo menos 6 caracteres."
     elif len(senha) > 128:
         erros["senha"] = "A senha deve ter no máximo 128 caracteres."
+    if senha != confirmar_senha:
+        erros["confirmar_senha"] = "As senhas não coincidem."
     if erros:
         return jsonify(erros=erros), 400
 
@@ -164,8 +167,8 @@ def login():
         if not check_password_hash(usuario[2], senha):
             return jsonify(erro="E-mail ou senha incorretos."), 401
     else:
-        if len(senha) < 8 or len(senha) > 128:
-            return jsonify(erro="Defina uma senha com 8 a 128 caracteres."), 400
+        if len(senha) < 6 or len(senha) > 128:
+            return jsonify(erro="Defina uma senha com 6 a 128 caracteres."), 400
         if not telefone or telefone != usuario[3]:
             return jsonify(erro="No primeiro acesso, informe o telefone cadastrado."), 401
         with sqlite3.connect(DB_PATH) as db:

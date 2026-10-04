@@ -333,6 +333,12 @@ formCadastro.addEventListener("submit", async (evento) => {
   const dados = Object.fromEntries(new FormData(formCadastro));
   const nome = String(dados.nome || "").trim();
 
+  if (dados.senha !== dados.confirmar_senha) {
+    mostrarErros(formCadastro, { confirmar_senha: "As senhas não coincidem." });
+    botaoCadastro.disabled = false;
+    return;
+  }
+
   if (perfilSelecionado === "barbeiros" && !nomeBarbeiroValido.test(nome)) {
     mensagemCadastro.textContent = "Use letras maiúsculas no início de cada nome e evite números ou símbolos.";
     mensagemCadastro.className = "mensagem erro";
