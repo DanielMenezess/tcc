@@ -25,6 +25,7 @@ const mensagemData = document.getElementById("mensagem-data");
 const painelEscolherHorario = document.getElementById("painel-escolher-horario");
 const listaHorarios = document.getElementById("lista-horarios");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
+const faixaHorarios = document.getElementById("faixa-horarios");
 const painelConfirmarAgendamento = document.getElementById("painel-confirmar-agendamento");
 const resumoAgendamento = document.getElementById("resumo-agendamento");
 const mensagemAgendamento = document.getElementById("mensagem-agendamento");
@@ -211,8 +212,19 @@ campoDataAgendamento.addEventListener("change", () => {
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
   const [ano, mes, dia] = dataSelecionada.split("-");
-  mensagemData.textContent = `Horários para ${dia}/${mes}/${ano}.`;
+  const domingo = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia))).getUTCDay() === 0;
   painelEscolherHorario.hidden = false;
+  faixaHorarios.hidden = domingo;
+
+  if (domingo) {
+    mensagemData.textContent = "A barbearia não abre aos domingos.";
+    listaHorarios.replaceChildren();
+    horarioSelecionadoTexto.textContent = "Não há horários disponíveis, pois a barbearia não abre aos domingos.";
+    selecaoAgendamentoAlterada();
+    return;
+  }
+
+  mensagemData.textContent = `Horários para ${dia}/${mes}/${ano}.`;
   renderizarHorarios();
   selecaoAgendamentoAlterada();
 });
