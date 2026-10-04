@@ -444,16 +444,24 @@ def listar_agendamentos_barbeiro():
     if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem consultar agendamentos."), 403
 
-    data_texto = request.args.get("data", "")
-    try:
-        data_agendamento = date.fromisoformat(data_texto)
-    except ValueError:
-        return jsonify(erro="Escolha uma data válida."), 400
-    if data_agendamento.isoformat() != data_texto:
-        return jsonify(erro="Escolha uma data válida."), 400
-
     ids_barbeiro = [str(session["usuario_id"])]
     marcadores = ", ".join("?" for _ in ids_barbeiro)
+    if request.args.get("proximo") == "1":
+        with sqlite3.connect(DB_PATH) as db:
+            proxima_data = db.execute(
+                f"SELECT MIN(data_agendamento) FROM agendamento "
+                f"WHERE data_agendamento >= ? AND barbeiro_id IN ({marcadores})",
+                (date.today().isoformat(), *ids_barbeiro),
+            ).fetchone()[0]
+        data_texto = proxima_data or date.today().isoformat()
+    else:
+        data_texto = request.args.get("data", "")
+        try:
+            data_agendamento = date.fromisoformat(data_texto)
+        except ValueError:
+            return jsonify(erro="Escolha uma data válida."), 400
+        if data_agendamento.isoformat() != data_texto:
+            return jsonify(erro="Escolha uma data válida."), 400
 
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
@@ -465,7 +473,7 @@ def listar_agendamentos_barbeiro():
             "ORDER BY a.horario, a.id",
             (data_texto, *ids_barbeiro),
         )]
-    return jsonify(agendamentos=agendamentos)
+    return jsonify(data=data_texto, agendamentos=agendamentos)
 
 
 @app.get("/api/historico-servicos")

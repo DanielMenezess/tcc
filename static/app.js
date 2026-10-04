@@ -237,7 +237,7 @@ function mostrarServicos(usuario) {
     carregarBarbeiros();
   } else {
     campoDataAgendaBarbeiro.value = dataLocalAtual();
-    carregarAgendamentosBarbeiro();
+    carregarAgendamentosBarbeiro(true);
     tituloHistoricoServicos.textContent = usuario.administrador
       ? "Histórico de serviços de todos os barbeiros"
       : "Meu histórico de serviços";
@@ -469,7 +469,7 @@ function renderizarAgendamentosBarbeiro(agendamentos) {
   });
 }
 
-async function carregarAgendamentosBarbeiro() {
+async function carregarAgendamentosBarbeiro(proximaData = false) {
   listaAgendamentos.replaceChildren();
   const carregando = document.createElement("li");
   carregando.className = "estado-lista";
@@ -479,9 +479,11 @@ async function carregarAgendamentosBarbeiro() {
 
   try {
     const data = encodeURIComponent(campoDataAgendaBarbeiro.value);
-    const resposta = await fetch(`/api/agendamentos?data=${data}`);
+    const url = proximaData ? "/api/agendamentos?proximo=1" : `/api/agendamentos?data=${data}`;
+    const resposta = await fetch(url);
     const corpo = await resposta.json();
     if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar agendamentos.");
+    if (proximaData) campoDataAgendaBarbeiro.value = corpo.data;
     renderizarAgendamentosBarbeiro(corpo.agendamentos);
   } catch {
     totalAgendamentos.textContent = "";
@@ -508,7 +510,7 @@ seletorPerfil.forEach((botao) => {
 
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
-campoDataAgendaBarbeiro.addEventListener("change", carregarAgendamentosBarbeiro);
+campoDataAgendaBarbeiro.addEventListener("change", () => carregarAgendamentosBarbeiro());
 campoDataAgendamento.addEventListener("change", () => {
   const hoje = dataLocalAtual();
   campoDataAgendamento.min = hoje;

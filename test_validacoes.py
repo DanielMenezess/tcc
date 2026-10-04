@@ -450,6 +450,35 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
     assert cliente.get(f"/api/agendamentos?data={hoje}").status_code == 403
 
 
+def testar_agenda_inicia_na_proxima_data_com_agendamentos(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+
+    proximo_dia = (date.today() + timedelta(days=1)).isoformat()
+    outro_dia = (date.today() + timedelta(days=2)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        id_admin = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+        db.executemany(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                (1, 1, "Corte", str(id_admin), "Daniel Gabriel", proximo_dia, "09:00", 30, 35),
+                (1, 2, "Barba", str(id_admin), "Daniel Gabriel", outro_dia, "10:00", 20, 25),
+            ],
+        )
+
+    resposta = administrador.get("/api/agendamentos?proximo=1")
+
+    assert resposta.status_code == 200
+    assert resposta.json["data"] == proximo_dia
+    assert [item["servico"] for item in resposta.json["agendamentos"]] == ["Corte"]
+
+
 def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_para_admin(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
