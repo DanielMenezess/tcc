@@ -430,7 +430,7 @@ body {
   width: min(100%, 420px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
-  margin-top: 16px;
+  margin-top: 8px;
   padding: 3px;
   background: var(--fundo-secundario);
   border: 1px solid var(--linha);
@@ -581,7 +581,7 @@ body {
 
 .mensagem {
   min-height: 1.2em;
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: var(--erro);
   font-size: 0.85rem;
 }
