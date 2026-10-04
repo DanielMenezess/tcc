@@ -11,6 +11,7 @@ const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
 const botaoLogin = document.getElementById("botao-login");
 const botaoSair = document.getElementById("botao-sair");
+const botaoTema = document.getElementById("botao-tema");
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
@@ -52,6 +53,30 @@ let dataSelecionada = null;
 let horarioSelecionado = null;
 let agendamentoConfirmado = false;
 let confirmandoAgendamento = false;
+
+function atualizarBotaoTema(tema) {
+  const temaEscuro = tema === "escuro";
+  document.documentElement.dataset.tema = temaEscuro ? "escuro" : "claro";
+  botaoTema.textContent = temaEscuro ? "Ativar tema claro" : "Ativar tema escuro";
+  botaoTema.setAttribute("aria-pressed", String(temaEscuro));
+  document.querySelector('meta[name="theme-color"]').content = temaEscuro ? "#171a1f" : "#ffffff";
+}
+
+try {
+  atualizarBotaoTema(localStorage.getItem("fadehouse-tema") || "claro");
+} catch {
+  atualizarBotaoTema("claro");
+}
+
+botaoTema.addEventListener("click", () => {
+  const tema = document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro";
+  atualizarBotaoTema(tema);
+  try {
+    localStorage.setItem("fadehouse-tema", tema);
+  } catch {
+    return;
+  }
+});
 
 function dataLocalAtual() {
   const agora = new Date();
