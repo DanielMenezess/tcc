@@ -15,6 +15,9 @@ const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro
 const instrucaoServicos = document.getElementById("instrucao-servicos");
 const listaBarbeiros = document.getElementById("lista-barbeiros");
 const totalBarbeiros = document.getElementById("total-barbeiros");
+const painelEscolherHorario = document.getElementById("painel-escolher-horario");
+const listaHorarios = document.getElementById("lista-horarios");
+const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
@@ -25,6 +28,23 @@ let perfilSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
 let barbeiroSelecionadoId = null;
+let horarioSelecionado = null;
+
+function renderizarHorarios() {
+  listaHorarios.replaceChildren();
+  for (let minutos = 9 * 60; minutos <= 19 * 60 + 30; minutos += 30) {
+    const hora = String(Math.floor(minutos / 60)).padStart(2, "0");
+    const minuto = String(minutos % 60).padStart(2, "0");
+    const horario = `${hora}:${minuto}`;
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.className = "botao-horario";
+    botao.dataset.horario = horario;
+    botao.textContent = horario;
+    botao.setAttribute("aria-pressed", String(horario === horarioSelecionado));
+    listaHorarios.append(botao);
+  }
+}
 
 function formatarTelefone(digitos) {
   const numero = digitos.replace(/\D/g, "").slice(0, 11);
@@ -70,9 +90,13 @@ function mostrarServicos(usuario) {
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
+  painelEscolherHorario.hidden = tipoUsuario !== "clientes";
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
   servicoSelecionadoId = null;
   barbeiroSelecionadoId = null;
+  horarioSelecionado = null;
+  horarioSelecionadoTexto.textContent = "";
+  renderizarHorarios();
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
     ? "Área do barbeiro"
@@ -346,6 +370,17 @@ listaBarbeiros.addEventListener("click", (evento) => {
     item.textContent = selecionado ? "Selecionado" : "Escolher";
     item.setAttribute("aria-pressed", String(selecionado));
   });
+});
+
+listaHorarios.addEventListener("click", (evento) => {
+  const botao = evento.target.closest(".botao-horario");
+  if (!botao) return;
+
+  horarioSelecionado = botao.dataset.horario;
+  listaHorarios.querySelectorAll(".botao-horario").forEach((item) => {
+    item.setAttribute("aria-pressed", String(item === botao));
+  });
+  horarioSelecionadoTexto.textContent = `Horário selecionado: ${horarioSelecionado}`;
 });
 
 botaoSair.addEventListener("click", async () => {

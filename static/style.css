@@ -182,6 +182,35 @@ body {
   list-style: none;
 }
 
+.grade-horarios {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+}
+
+.botao-horario {
+  min-height: 40px;
+  background: #f8fafd;
+  border: 1px solid #c9d8e8;
+  border-radius: 5px;
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.botao-horario:hover {
+  border-color: var(--azul);
+  color: var(--azul-escuro);
+}
+
+.botao-horario[aria-pressed="true"] {
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #ffffff;
+}
+
 .servico {
   display: flex;
   min-height: 46px;
@@ -374,6 +403,7 @@ body {
 
 .botao-principal:focus-visible,
 .botao-escolher:focus-visible,
+.botao-horario:focus-visible,
 .botao-remover:focus-visible,
 .link-nav:focus-visible,
 .botao-sair:focus-visible,
