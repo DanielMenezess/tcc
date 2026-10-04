@@ -143,7 +143,7 @@ def listar_barbeiros():
         barbeiros = [dict(row) for row in db.execute(
             "SELECT id, nome FROM barbeiro ORDER BY nome"
         )]
-    return jsonify(barbeiros=[{"id": "fixo-joao", "nome": "Joao"}, *barbeiros])
+    return jsonify(barbeiros=[{"id": "fixo-joao", "nome": "João"}, *barbeiros])
 
 
 @app.get("/api/servicos")
