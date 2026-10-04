@@ -25,6 +25,10 @@ const mensagemData = document.getElementById("mensagem-data");
 const painelEscolherHorario = document.getElementById("painel-escolher-horario");
 const listaHorarios = document.getElementById("lista-horarios");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
+const painelConfirmarAgendamento = document.getElementById("painel-confirmar-agendamento");
+const resumoAgendamento = document.getElementById("resumo-agendamento");
+const mensagemAgendamento = document.getElementById("mensagem-agendamento");
+const botaoConfirmarAgendamento = document.getElementById("botao-confirmar-agendamento");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const seletorPerfilLogin = Array.from(document.querySelectorAll("[data-login-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
@@ -36,9 +40,13 @@ let perfilSelecionado = "clientes";
 let perfilLoginSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
+let servicoSelecionadoNome = null;
 let barbeiroSelecionadoId = null;
+let barbeiroSelecionadoNome = null;
 let dataSelecionada = null;
 let horarioSelecionado = null;
+let agendamentoConfirmado = false;
+let confirmandoAgendamento = false;
 
 function dataLocalAtual() {
   const agora = new Date();
@@ -48,18 +56,42 @@ function dataLocalAtual() {
   return `${ano}-${mes}-${dia}`;
 }
 
+function atualizarResumoAgendamento() {
+  const completo = Boolean(
+    servicoSelecionadoId && barbeiroSelecionadoId && dataSelecionada && horarioSelecionado,
+  );
+  botaoConfirmarAgendamento.disabled = !completo || confirmandoAgendamento || agendamentoConfirmado;
+
+  if (!agendamentoConfirmado) {
+    resumoAgendamento.textContent = completo
+      ? `${servicoSelecionadoNome} com ${barbeiroSelecionadoNome}, em ${dataSelecionada.split("-").reverse().join("/")} às ${horarioSelecionado}.`
+      : "Escolha o serviço, barbeiro, data e horário.";
+  }
+}
+
+function selecaoAgendamentoAlterada() {
+  agendamentoConfirmado = false;
+  mensagemAgendamento.textContent = "";
+  mensagemAgendamento.className = "mensagem";
+  botaoConfirmarAgendamento.textContent = "Confirmar agendamento";
+  atualizarResumoAgendamento();
+}
+
 function renderizarHorarios() {
   listaHorarios.replaceChildren();
+  const agora = new Date();
   for (let minutos = 9 * 60; minutos <= 19 * 60 + 30; minutos += 30) {
     const hora = String(Math.floor(minutos / 60)).padStart(2, "0");
     const minuto = String(minutos % 60).padStart(2, "0");
     const horario = `${hora}:${minuto}`;
+    const horarioJaPassou = dataSelecionada === dataLocalAtual()
+      && minutos <= agora.getHours() * 60 + agora.getMinutes();
     const botao = document.createElement("button");
     botao.type = "button";
     botao.className = "botao-horario";
     botao.dataset.horario = horario;
     botao.textContent = horario;
-    botao.disabled = horario === "12:00" || horario === "12:30";
+    botao.disabled = horario === "12:00" || horario === "12:30" || horarioJaPassou;
     botao.setAttribute("aria-pressed", String(horario === horarioSelecionado));
     listaHorarios.append(botao);
   }
@@ -119,15 +151,23 @@ function mostrarServicos(usuario) {
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
   painelEscolherHorario.hidden = true;
+  painelConfirmarAgendamento.hidden = tipoUsuario !== "clientes";
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
   servicoSelecionadoId = null;
+  servicoSelecionadoNome = null;
   barbeiroSelecionadoId = null;
+  barbeiroSelecionadoNome = null;
   dataSelecionada = null;
   campoDataAgendamento.min = dataLocalAtual();
   campoDataAgendamento.value = "";
   mensagemData.textContent = "Selecione hoje ou uma data futura.";
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
+  agendamentoConfirmado = false;
+  confirmandoAgendamento = false;
+  mensagemAgendamento.textContent = "";
+  botaoConfirmarAgendamento.textContent = "Confirmar agendamento";
+  atualizarResumoAgendamento();
   renderizarHorarios();
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
@@ -163,6 +203,7 @@ campoDataAgendamento.addEventListener("change", () => {
     horarioSelecionadoTexto.textContent = "";
     renderizarHorarios();
     mensagemData.textContent = "Escolha hoje ou uma data futura.";
+    selecaoAgendamentoAlterada();
     return;
   }
 
@@ -173,6 +214,7 @@ campoDataAgendamento.addEventListener("change", () => {
   mensagemData.textContent = `Horários para ${dia}/${mes}/${ano}.`;
   painelEscolherHorario.hidden = false;
   renderizarHorarios();
+  selecaoAgendamentoAlterada();
 });
 seletorPerfilLogin.forEach((botao) => {
   botao.addEventListener("click", () => {
@@ -442,11 +484,13 @@ lista.addEventListener("click", async (evento) => {
   const botaoEscolher = evento.target.closest(".botao-escolher");
   if (botaoEscolher) {
     servicoSelecionadoId = botaoEscolher.dataset.id;
+    servicoSelecionadoNome = botaoEscolher.closest(".servico").querySelector("strong").textContent;
     lista.querySelectorAll(".botao-escolher").forEach((botao) => {
       const selecionado = botao === botaoEscolher;
       botao.textContent = selecionado ? "Selecionado" : "Escolher";
       botao.setAttribute("aria-pressed", String(selecionado));
     });
+    selecaoAgendamentoAlterada();
     return;
   }
 
@@ -470,22 +514,65 @@ listaBarbeiros.addEventListener("click", (evento) => {
   if (!botao) return;
 
   barbeiroSelecionadoId = botao.dataset.id;
+  barbeiroSelecionadoNome = botao.closest(".servico").querySelector("strong").textContent;
   listaBarbeiros.querySelectorAll(".botao-escolher").forEach((item) => {
     const selecionado = item === botao;
     item.textContent = selecionado ? "Selecionado" : "Escolher";
     item.setAttribute("aria-pressed", String(selecionado));
   });
+  selecaoAgendamentoAlterada();
 });
 
 listaHorarios.addEventListener("click", (evento) => {
   const botao = evento.target.closest(".botao-horario");
-  if (!botao || botao.disabled) return;
+  if (!botao || botao.disabled || !dataSelecionada) return;
 
   horarioSelecionado = botao.dataset.horario;
   listaHorarios.querySelectorAll(".botao-horario").forEach((item) => {
     item.setAttribute("aria-pressed", String(item === botao));
   });
   horarioSelecionadoTexto.textContent = `Horário selecionado: ${horarioSelecionado}`;
+  selecaoAgendamentoAlterada();
+});
+
+botaoConfirmarAgendamento.addEventListener("click", async () => {
+  if (botaoConfirmarAgendamento.disabled) return;
+
+  confirmandoAgendamento = true;
+  mensagemAgendamento.textContent = "";
+  mensagemAgendamento.className = "mensagem";
+  botaoConfirmarAgendamento.textContent = "Confirmando...";
+  atualizarResumoAgendamento();
+
+  try {
+    const resposta = await fetch("/api/agendamentos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        servico_id: servicoSelecionadoId,
+        barbeiro_id: barbeiroSelecionadoId,
+        data: dataSelecionada,
+        horario: horarioSelecionado,
+      }),
+    });
+    const corpo = await resposta.json();
+    if (!resposta.ok) {
+      mensagemAgendamento.textContent = corpo.erro || "Não foi possível confirmar o agendamento.";
+      return;
+    }
+
+    agendamentoConfirmado = true;
+    const agendamento = corpo.agendamento;
+    resumoAgendamento.textContent = `${agendamento.servico} com ${agendamento.barbeiro}, em ${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario}.`;
+    mensagemAgendamento.textContent = "Agendamento confirmado.";
+    mensagemAgendamento.classList.add("sucesso");
+    botaoConfirmarAgendamento.textContent = "Agendamento confirmado";
+  } catch {
+    mensagemAgendamento.textContent = "Sem conexão com o servidor. Tente novamente.";
+  } finally {
+    confirmandoAgendamento = false;
+    atualizarResumoAgendamento();
+  }
 });
 
 botaoSair.addEventListener("click", async () => {

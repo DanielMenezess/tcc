@@ -4,6 +4,7 @@ import sqlite3
 import math
 import os
 import secrets
+from datetime import date, datetime
 from pathlib import Path
 
 from flask import Flask, jsonify, request, session
@@ -41,6 +42,20 @@ def init_db():
                 nome     TEXT NOT NULL UNIQUE,
                 duracao  INTEGER NOT NULL,
                 preco    REAL NOT NULL
+            )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS agendamento (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                cliente_id       INTEGER NOT NULL,
+                servico_id       INTEGER NOT NULL,
+                servico_nome     TEXT NOT NULL,
+                barbeiro_id      TEXT NOT NULL,
+                barbeiro_nome    TEXT NOT NULL,
+                data_agendamento TEXT NOT NULL,
+                horario          TEXT NOT NULL,
+                duracao          INTEGER NOT NULL,
+                preco            REAL NOT NULL
             )"""
         )
         if db.execute("SELECT COUNT(*) FROM servico").fetchone()[0] == 0:
@@ -249,6 +264,104 @@ def listar_servicos():
             "SELECT id, nome, duracao, preco FROM servico ORDER BY id"
         )]
     return jsonify(servicos=servicos)
+
+
+@app.post("/api/agendamentos")
+def criar_agendamento():
+    if session.get("tipo") != "clientes":
+        return jsonify(erro="Apenas clientes podem confirmar agendamentos."), 403
+
+    dados = request.get_json(silent=True) or {}
+    try:
+        servico_id = int(dados.get("servico_id", ""))
+    except (TypeError, ValueError):
+        return jsonify(erro="Escolha um serviço válido."), 400
+
+    barbeiro_id = str(dados.get("barbeiro_id", "")).strip()
+    data_texto = str(dados.get("data", ""))
+    horario = str(dados.get("horario", ""))
+    try:
+        data_agendamento = date.fromisoformat(data_texto)
+    except ValueError:
+        return jsonify(erro="Escolha uma data válida."), 400
+    if data_agendamento.isoformat() != data_texto or data_agendamento < date.today():
+        return jsonify(erro="A data do agendamento não pode ser anterior a hoje."), 400
+
+    if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", horario):
+        return jsonify(erro="Escolha um horário válido."), 400
+    minutos_inicio = int(horario[:2]) * 60 + int(horario[3:])
+    if (
+        minutos_inicio < 9 * 60
+        or minutos_inicio > 19 * 60 + 30
+        or minutos_inicio % 30 != 0
+        or horario in ("12:00", "12:30")
+    ):
+        return jsonify(erro="Esse horário não está disponível."), 400
+    agora = datetime.now()
+    if data_agendamento == agora.date() and minutos_inicio <= agora.hour * 60 + agora.minute:
+        return jsonify(erro="Esse horário já passou. Escolha outro horário."), 400
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("BEGIN IMMEDIATE")
+        servico = db.execute(
+            "SELECT nome, duracao, preco FROM servico WHERE id = ?",
+            (servico_id,),
+        ).fetchone()
+        if not servico:
+            return jsonify(erro="O serviço selecionado não existe mais."), 404
+
+        if barbeiro_id == "fixo-joao":
+            barbeiro_nome = "João"
+        elif barbeiro_id.isdecimal():
+            barbeiro = db.execute(
+                "SELECT nome FROM barbeiro WHERE id = ?",
+                (int(barbeiro_id),),
+            ).fetchone()
+            if not barbeiro:
+                return jsonify(erro="O barbeiro selecionado não existe mais."), 404
+            barbeiro_nome = barbeiro[0]
+        else:
+            return jsonify(erro="Escolha um barbeiro válido."), 400
+
+        agendamentos = db.execute(
+            "SELECT horario, duracao FROM agendamento "
+            "WHERE barbeiro_id = ? AND data_agendamento = ?",
+            (barbeiro_id, data_texto),
+        ).fetchall()
+        fim_novo = minutos_inicio + servico[1]
+        for horario_existente, duracao_existente in agendamentos:
+            minutos_existente = int(horario_existente[:2]) * 60 + int(horario_existente[3:])
+            if minutos_inicio < minutos_existente + duracao_existente and minutos_existente < fim_novo:
+                return jsonify(erro="Esse horário acabou de ser reservado. Escolha outro."), 409
+
+        cursor = db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                session["usuario_id"],
+                servico_id,
+                servico[0],
+                barbeiro_id,
+                barbeiro_nome,
+                data_texto,
+                horario,
+                servico[1],
+                servico[2],
+            ),
+        )
+
+    return jsonify(
+        ok=True,
+        agendamento={
+            "id": cursor.lastrowid,
+            "servico": servico[0],
+            "barbeiro": barbeiro_nome,
+            "data": data_texto,
+            "horario": horario,
+            "preco": servico[2],
+        },
+    ), 201
 
 
 @app.post("/api/servicos")

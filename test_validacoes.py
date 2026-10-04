@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 import app as app_module
 
 
@@ -115,6 +117,77 @@ def testar_email_e_telefone_nao_podem_ser_reutilizados_entre_perfis(tmp_path, mo
     telefone_de_barbeiro = cadastrar("clientes", "Ana da Silva", "ana@teste.com", "41922222222")
     assert telefone_de_barbeiro.status_code == 409
     assert "telefone" in telefone_de_barbeiro.json["erros"]
+
+
+def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+
+    resposta = cliente.post(
+        "/api/agendamentos",
+        json={
+            "servico_id": 1,
+            "barbeiro_id": "fixo-joao",
+            "data": (date.today() + timedelta(days=1)).isoformat(),
+            "horario": "09:00",
+        },
+    )
+
+    assert resposta.status_code == 201
+    assert resposta.json["agendamento"]["servico"] == "Corte"
+    assert resposta.json["agendamento"]["barbeiro"] == "João"
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 1
+
+
+def testar_agendamento_rejeita_horario_sobreposto(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    dados = {
+        "servico_id": 3,
+        "barbeiro_id": "fixo-joao",
+        "data": (date.today() + timedelta(days=1)).isoformat(),
+        "horario": "09:00",
+    }
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 201
+
+    dados["servico_id"] = 1
+    dados["horario"] = "09:30"
+    resposta = cliente.post("/api/agendamentos", json=dados)
+
+    assert resposta.status_code == 409
+    assert "reservado" in resposta.json["erro"]
+
+
+def testar_agendamento_exige_sessao_de_cliente(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+
+    resposta = app_module.app.test_client().post("/api/agendamentos", json={})
+
+    assert resposta.status_code == 403
 
 
 def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch):
