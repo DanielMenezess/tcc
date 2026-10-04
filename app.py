@@ -351,7 +351,7 @@ def listar_barbeiros():
         barbeiros = [dict(row) for row in db.execute(
             "SELECT id, nome FROM barbeiro ORDER BY nome"
         )]
-    return jsonify(barbeiros=[{"id": "fixo-joao", "nome": "João"}, *barbeiros])
+    return jsonify(barbeiros=barbeiros)
 
 
 @app.get("/api/servicos")
@@ -378,8 +378,6 @@ def listar_agendamentos_barbeiro():
         return jsonify(erro="Escolha uma data válida."), 400
 
     ids_barbeiro = [str(session["usuario_id"])]
-    if session.get("nome") == "João":
-        ids_barbeiro.append("fixo-joao")
     marcadores = ", ".join("?" for _ in ids_barbeiro)
 
     with sqlite3.connect(DB_PATH) as db:
@@ -439,9 +437,7 @@ def criar_agendamento():
         if not servico:
             return jsonify(erro="O serviço selecionado não existe mais."), 404
 
-        if barbeiro_id == "fixo-joao":
-            barbeiro_nome = "João"
-        elif barbeiro_id.isdecimal():
+        if barbeiro_id.isdecimal():
             barbeiro = db.execute(
                 "SELECT nome FROM barbeiro WHERE id = ?",
                 (int(barbeiro_id),),
