@@ -41,6 +41,7 @@ function renderizarHorarios() {
     botao.className = "botao-horario";
     botao.dataset.horario = horario;
     botao.textContent = horario;
+    botao.disabled = horario === "12:00" || horario === "12:30";
     botao.setAttribute("aria-pressed", String(horario === horarioSelecionado));
     listaHorarios.append(botao);
   }
@@ -374,7 +375,7 @@ listaBarbeiros.addEventListener("click", (evento) => {
 
 listaHorarios.addEventListener("click", (evento) => {
   const botao = evento.target.closest(".botao-horario");
-  if (!botao) return;
+  if (!botao || botao.disabled) return;
 
   horarioSelecionado = botao.dataset.horario;
   listaHorarios.querySelectorAll(".botao-horario").forEach((item) => {

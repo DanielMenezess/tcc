@@ -211,6 +211,13 @@ body {
   color: #ffffff;
 }
 
+.botao-horario:disabled {
+  background: #e5e5e5;
+  border-color: #c8c8c8;
+  color: #777777;
+  cursor: not-allowed;
+}
+
 .servico {
   display: flex;
   min-height: 46px;
