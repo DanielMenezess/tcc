@@ -124,6 +124,28 @@ def cadastrar(tipo):
     return jsonify(ok=True), 201
 
 
+@app.post("/api/login")
+def login():
+    dados = request.get_json(silent=True) or {}
+    email = str(dados.get("email", "")).strip().lower()
+    telefone = re.sub(r"\D", "", str(dados.get("telefone", "")))
+
+    with sqlite3.connect(DB_PATH) as db:
+        usuario = db.execute(
+            "SELECT id, nome FROM cliente WHERE email = ? AND telefone = ?",
+            (email, telefone),
+        ).fetchone()
+
+    if not usuario:
+        return jsonify(erro="E-mail ou telefone incorretos."), 401
+
+    session.clear()
+    session["tipo"] = "clientes"
+    session["usuario_id"] = usuario[0]
+    session["nome"] = usuario[1]
+    return jsonify(ok=True)
+
+
 @app.get("/api/sessao")
 def sessao_atual():
     if not session.get("tipo"):

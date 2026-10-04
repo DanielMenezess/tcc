@@ -1,14 +1,19 @@
 const formServico = document.getElementById("form-servico");
 const formCadastro = document.getElementById("form-cadastro");
+const formLogin = document.getElementById("form-login");
 const lista = document.getElementById("lista-servicos");
 const total = document.getElementById("total-servicos");
 const mensagemServico = document.getElementById("mensagem");
 const mensagemCadastro = document.getElementById("mensagem-cadastro");
+const mensagemLogin = document.getElementById("mensagem-login");
 const campoTelefone = document.getElementById("cadastro-telefone");
+const campoTelefoneLogin = document.getElementById("login-telefone");
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
+const botaoLogin = document.getElementById("botao-login");
 const botaoSair = document.getElementById("botao-sair");
 const telaCadastro = document.getElementById("tela-cadastro");
+const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
 const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
@@ -80,8 +85,23 @@ campoTelefone.addEventListener("input", () => {
   campoTelefone.setSelectionRange(novaPosicao, novaPosicao);
 });
 
+campoTelefoneLogin.addEventListener("input", () => {
+  const posicaoAtual = campoTelefoneLogin.selectionStart ?? campoTelefoneLogin.value.length;
+  const quantidadeDigitos = campoTelefoneLogin.value.slice(0, posicaoAtual).replace(/\D/g, "").length;
+  campoTelefoneLogin.value = formatarTelefone(campoTelefoneLogin.value);
+  const novaPosicao = posicaoDoCursor(campoTelefoneLogin.value, quantidadeDigitos);
+  campoTelefoneLogin.setSelectionRange(novaPosicao, novaPosicao);
+});
+
 function mostrarCadastro() {
   telaCadastro.hidden = false;
+  telaLogin.hidden = true;
+  telaServicos.hidden = true;
+}
+
+function mostrarLogin() {
+  telaCadastro.hidden = true;
+  telaLogin.hidden = false;
   telaServicos.hidden = true;
 }
 
@@ -117,6 +137,9 @@ seletorPerfil.forEach((botao) => {
     botaoCadastro.textContent = `Cadastrar como ${perfilSelecionado === "clientes" ? "cliente" : "barbeiro"}`;
   });
 });
+
+document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
+document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
 
 function exibirEstado(texto) {
   lista.replaceChildren();
@@ -331,6 +354,36 @@ formCadastro.addEventListener("submit", async (evento) => {
     mensagemCadastro.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
     botaoCadastro.disabled = false;
+  }
+});
+
+formLogin.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  mensagemLogin.textContent = "";
+  mensagemLogin.className = "mensagem";
+  botaoLogin.disabled = true;
+
+  const dados = Object.fromEntries(new FormData(formLogin));
+  try {
+    const resposta = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    const corpo = await resposta.json();
+
+    if (!resposta.ok) {
+      mensagemLogin.textContent = corpo.erro || "Não foi possível entrar na conta.";
+      return;
+    }
+
+    formLogin.reset();
+    const sessao = await fetch("/api/sessao");
+    mostrarServicos(await sessao.json());
+  } catch {
+    mensagemLogin.textContent = "Sem conexão com o servidor. Tente novamente.";
+  } finally {
+    botaoLogin.disabled = false;
   }
 });
 
