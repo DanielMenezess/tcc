@@ -110,6 +110,7 @@ function mostrarLogin() {
 function mostrarServicos(usuario) {
   tipoUsuario = usuario.tipo;
   telaCadastro.hidden = true;
+  telaLogin.hidden = true;
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
