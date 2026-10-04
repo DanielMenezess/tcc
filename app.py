@@ -7,6 +7,7 @@ import secrets
 from pathlib import Path
 
 from flask import Flask, jsonify, request, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "fadehouse.db"
@@ -27,9 +28,13 @@ def init_db():
                     id       INTEGER PRIMARY KEY AUTOINCREMENT,
                     nome     TEXT NOT NULL,
                     email    TEXT NOT NULL UNIQUE,
-                    telefone TEXT NOT NULL
+                    telefone TEXT NOT NULL,
+                    senha_hash TEXT
                 )"""
             )
+            colunas = {linha[1] for linha in db.execute(f"PRAGMA table_info({tabela})")}
+            if "senha_hash" not in colunas:
+                db.execute(f"ALTER TABLE {tabela} ADD COLUMN senha_hash TEXT")
         db.execute(
             """CREATE TABLE IF NOT EXISTS servico (
                 id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,15 +109,26 @@ def cadastrar(tipo):
     if not tabela:
         return jsonify(erro="Tipo de cadastro inexistente."), 404
 
-    dados, erros = validar(request.get_json(silent=True) or {}, tipo=tipo)
+    entrada = request.get_json(silent=True) or {}
+    dados, erros = validar(entrada, tipo=tipo)
+    senha = str(entrada.get("senha", ""))
+    if len(senha) < 8:
+        erros["senha"] = "A senha deve ter pelo menos 8 caracteres."
+    elif len(senha) > 128:
+        erros["senha"] = "A senha deve ter no máximo 128 caracteres."
     if erros:
         return jsonify(erros=erros), 400
 
     try:
         with sqlite3.connect(DB_PATH) as db:
             cursor = db.execute(
-                f"INSERT INTO {tabela} (nome, email, telefone) VALUES (?, ?, ?)",
-                (dados["nome"], dados["email"], dados["telefone"]),
+                f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
+                (
+                    dados["nome"],
+                    dados["email"],
+                    dados["telefone"],
+                    generate_password_hash(senha),
+                ),
             )
     except sqlite3.IntegrityError:
         return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409
@@ -127,20 +143,39 @@ def cadastrar(tipo):
 @app.post("/api/login")
 def login():
     dados = request.get_json(silent=True) or {}
+    tipo = dados.get("tipo")
+    tabela = TABELAS.get(tipo)
     email = str(dados.get("email", "")).strip().lower()
+    senha = str(dados.get("senha", ""))
     telefone = re.sub(r"\D", "", str(dados.get("telefone", "")))
 
-    with sqlite3.connect(DB_PATH) as db:
-        usuario = db.execute(
-            "SELECT id, nome FROM cliente WHERE email = ? AND telefone = ?",
-            (email, telefone),
-        ).fetchone()
+    usuario = None
+    if tabela and senha:
+        with sqlite3.connect(DB_PATH) as db:
+            usuario = db.execute(
+                f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE email = ?",
+                (email,),
+            ).fetchone()
 
     if not usuario:
-        return jsonify(erro="E-mail ou telefone incorretos."), 401
+        return jsonify(erro="E-mail ou senha incorretos."), 401
+
+    if usuario[2]:
+        if not check_password_hash(usuario[2], senha):
+            return jsonify(erro="E-mail ou senha incorretos."), 401
+    else:
+        if len(senha) < 8 or len(senha) > 128:
+            return jsonify(erro="Defina uma senha com 8 a 128 caracteres."), 400
+        if not telefone or telefone != usuario[3]:
+            return jsonify(erro="No primeiro acesso, informe o telefone cadastrado."), 401
+        with sqlite3.connect(DB_PATH) as db:
+            db.execute(
+                f"UPDATE {tabela} SET senha_hash = ? WHERE id = ?",
+                (generate_password_hash(senha), usuario[0]),
+            )
 
     session.clear()
-    session["tipo"] = "clientes"
+    session["tipo"] = tipo
     session["usuario_id"] = usuario[0]
     session["nome"] = usuario[1]
     return jsonify(ok=True)

@@ -24,12 +24,14 @@ const painelEscolherHorario = document.getElementById("painel-escolher-horario")
 const listaHorarios = document.getElementById("lista-horarios");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
+const seletorPerfilLogin = Array.from(document.querySelectorAll("[data-login-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
 const nomeBarbeiroValido = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$/;
 let perfilSelecionado = "clientes";
+let perfilLoginSelecionado = "clientes";
 let tipoUsuario = null;
 let servicoSelecionadoId = null;
 let barbeiroSelecionadoId = null;
@@ -140,6 +142,16 @@ seletorPerfil.forEach((botao) => {
 
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
+seletorPerfilLogin.forEach((botao) => {
+  botao.addEventListener("click", () => {
+    perfilLoginSelecionado = botao.dataset.loginPerfil;
+    seletorPerfilLogin.forEach((item) => {
+      const selecionado = item === botao;
+      item.classList.toggle("perfil-selecionado", selecionado);
+      item.setAttribute("aria-pressed", String(selecionado));
+    });
+  });
+});
 
 function exibirEstado(texto) {
   lista.replaceChildren();
@@ -364,6 +376,7 @@ formLogin.addEventListener("submit", async (evento) => {
   botaoLogin.disabled = true;
 
   const dados = Object.fromEntries(new FormData(formLogin));
+  dados.tipo = perfilLoginSelecionado;
   try {
     const resposta = await fetch("/api/login", {
       method: "POST",
