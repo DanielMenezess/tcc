@@ -16,6 +16,9 @@ const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
 const painelAdicionar = document.getElementById("painel-adicionar");
+const painelSolicitacoesBarbeiros = document.getElementById("painel-solicitacoes-barbeiros");
+const listaSolicitacoesBarbeiros = document.getElementById("lista-solicitacoes-barbeiros");
+const totalSolicitacoesBarbeiros = document.getElementById("total-solicitacoes-barbeiros");
 const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
 const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
 const instrucaoServicos = document.getElementById("instrucao-servicos");
@@ -180,6 +183,7 @@ function mostrarServicos(usuario) {
   telaLogin.hidden = true;
   telaServicos.hidden = false;
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
+  painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
   painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
@@ -212,6 +216,73 @@ function mostrarServicos(usuario) {
   } else {
     campoDataAgendaBarbeiro.value = dataLocalAtual();
     carregarAgendamentosBarbeiro();
+    if (usuario.administrador) carregarSolicitacoesBarbeiros();
+  }
+}
+
+function renderizarSolicitacoesBarbeiros(solicitacoes) {
+  listaSolicitacoesBarbeiros.replaceChildren();
+  totalSolicitacoesBarbeiros.textContent = `${solicitacoes.length} ${solicitacoes.length === 1 ? "solicitação" : "solicitações"}`;
+
+  if (solicitacoes.length === 0) {
+    const vazio = document.createElement("li");
+    vazio.className = "estado-lista";
+    vazio.textContent = "Não há solicitações pendentes.";
+    listaSolicitacoesBarbeiros.append(vazio);
+    return;
+  }
+
+  solicitacoes.forEach((solicitacao) => {
+    const item = document.createElement("li");
+    item.className = "servico";
+    const informacoes = document.createElement("div");
+    informacoes.className = "servico-info";
+    const nome = document.createElement("strong");
+    nome.textContent = solicitacao.nome;
+    const contato = document.createElement("span");
+    contato.className = "servico-detalhe";
+    contato.textContent = ` · ${solicitacao.email} · ${formatarTelefone(solicitacao.telefone)}`;
+    informacoes.append(nome, contato);
+
+    const acoes = document.createElement("div");
+    acoes.className = "acoes-solicitacao";
+    const aprovar = document.createElement("button");
+    aprovar.type = "button";
+    aprovar.className = "botao-aprovar";
+    aprovar.dataset.acao = "aprovar";
+    aprovar.dataset.id = solicitacao.id;
+    aprovar.textContent = "Aprovar";
+    const recusar = document.createElement("button");
+    recusar.type = "button";
+    recusar.className = "botao-recusar";
+    recusar.dataset.acao = "recusar";
+    recusar.dataset.id = solicitacao.id;
+    recusar.textContent = "Recusar";
+    acoes.append(aprovar, recusar);
+    item.append(informacoes, acoes);
+    listaSolicitacoesBarbeiros.append(item);
+  });
+}
+
+async function carregarSolicitacoesBarbeiros() {
+  listaSolicitacoesBarbeiros.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando solicitações...";
+  listaSolicitacoesBarbeiros.append(carregando);
+  totalSolicitacoesBarbeiros.textContent = "";
+
+  try {
+    const resposta = await fetch("/api/solicitacoes-barbeiros");
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar solicitações.");
+    renderizarSolicitacoesBarbeiros(corpo.solicitacoes);
+  } catch {
+    totalSolicitacoesBarbeiros.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar as solicitações. Tente novamente.";
+    listaSolicitacoesBarbeiros.replaceChildren(erro);
   }
 }
 
@@ -275,7 +346,9 @@ seletorPerfil.forEach((botao) => {
       item.classList.toggle("perfil-selecionado", selecionado);
       item.setAttribute("aria-pressed", String(selecionado));
     });
-    botaoCadastro.textContent = `Cadastrar como ${perfilSelecionado === "clientes" ? "cliente" : "barbeiro"}`;
+    botaoCadastro.textContent = perfilSelecionado === "clientes"
+      ? "Cadastrar como cliente"
+      : "Solicitar cadastro";
   });
 });
 
@@ -541,6 +614,12 @@ formCadastro.addEventListener("submit", async (evento) => {
     }
 
     formCadastro.reset();
+    if (perfilSelecionado === "barbeiros") {
+      mensagemCadastro.textContent = "Solicitação enviada ao administrador. Você poderá entrar após a aprovação.";
+      mensagemCadastro.classList.add("sucesso");
+      return;
+    }
+
     const sessao = await fetch("/api/sessao");
     const usuario = await sessao.json();
     mostrarServicos(usuario);
@@ -548,6 +627,29 @@ formCadastro.addEventListener("submit", async (evento) => {
     mensagemCadastro.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
     botaoCadastro.disabled = false;
+  }
+});
+
+listaSolicitacoesBarbeiros.addEventListener("click", async (evento) => {
+  const botao = evento.target.closest("[data-acao][data-id]");
+  if (!botao) return;
+
+  const item = botao.closest(".servico");
+  item.querySelectorAll("button").forEach((acao) => {
+    acao.disabled = true;
+  });
+  const endpoint = `/api/solicitacoes-barbeiros/${botao.dataset.id}`;
+  try {
+    const resposta = await fetch(
+      botao.dataset.acao === "aprovar" ? `${endpoint}/aprovar` : endpoint,
+      { method: botao.dataset.acao === "aprovar" ? "POST" : "DELETE" },
+    );
+    if (!resposta.ok) throw new Error("Não foi possível atualizar a solicitação.");
+    await carregarSolicitacoesBarbeiros();
+  } catch {
+    item.querySelectorAll("button").forEach((acao) => {
+      acao.disabled = false;
+    });
   }
 });
 

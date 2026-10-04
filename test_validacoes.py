@@ -3,6 +3,17 @@ from datetime import date, timedelta
 import app as app_module
 
 
+def entrar_administrador(cliente):
+    return cliente.post(
+        "/api/login",
+        json={
+            "tipo": "barbeiros",
+            "identificador": "danielgabriel@gmail.com",
+            "senha": "123456",
+        },
+    )
+
+
 def testar_login_de_cliente_cadastrado(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
@@ -30,6 +41,77 @@ def testar_login_de_cliente_cadastrado(tmp_path, monkeypatch):
         "tipo": "clientes",
         "nome": "Maria da Silva",
     }
+
+
+def testar_administrador_e_criado_novamente_com_o_banco(tmp_path, monkeypatch):
+    caminho_db = tmp_path / "fadehouse.db"
+    monkeypatch.setattr(app_module, "DB_PATH", caminho_db)
+    app_module.init_db()
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    assert administrador.get("/api/sessao").json == {
+        "autenticado": True,
+        "tipo": "barbeiros",
+        "nome": "Daniel Gabriel",
+        "administrador": True,
+    }
+
+    with app_module.sqlite3.connect(caminho_db) as db:
+        conta = db.execute(
+            "SELECT nome, email, telefone FROM barbeiro WHERE email = ?",
+            ("danielgabriel@gmail.com",),
+        ).fetchone()
+    assert conta == ("Daniel Gabriel", "danielgabriel@gmail.com", "1111111111")
+
+    caminho_db.unlink()
+    app_module.init_db()
+    administrador_apos_recriacao = app_module.app.test_client()
+    resposta = administrador_apos_recriacao.post(
+        "/api/login",
+        json={
+            "tipo": "barbeiros",
+            "identificador": "(11) 1111-1111",
+            "senha": "123456",
+        },
+    )
+    assert resposta.status_code == 200
+    assert administrador_apos_recriacao.get("/api/sessao").json["administrador"] is True
+
+
+def testar_solicitacao_barbeiro_exige_aprovacao_administrativa(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    barbeiro = app_module.app.test_client()
+
+    resposta = barbeiro.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    assert resposta.status_code == 202
+    assert barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 401
+    assert barbeiro.get("/api/solicitacoes-barbeiros").status_code == 403
+    assert barbeiro.post("/api/solicitacoes-barbeiros/1/aprovar").status_code == 403
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
+    assert administrador.delete(
+        f"/api/solicitacoes-barbeiros/{solicitacao['id']}"
+    ).status_code == 204
+    assert barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 401
 
 
 def testar_login_rejeita_senha_incorreta(tmp_path, monkeypatch):
@@ -100,7 +182,7 @@ def testar_email_e_telefone_nao_podem_ser_reutilizados_entre_perfis(tmp_path, mo
         )
 
     assert cadastrar("clientes", "Maria da Silva", "cliente@teste.com", "41911111111").status_code == 201
-    assert cadastrar("barbeiros", "João da Silva", "barbeiro@teste.com", "41922222222").status_code == 201
+    assert cadastrar("barbeiros", "João da Silva", "barbeiro@teste.com", "41922222222").status_code == 202
 
     email_de_cliente = cadastrar("barbeiros", "Pedro da Silva", "cliente@teste.com", "41933333333")
     assert email_de_cliente.status_code == 409
@@ -158,7 +240,7 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
     outro_barbeiro = app_module.app.test_client()
     cliente = app_module.app.test_client()
 
-    barbeiro.post(
+    resposta_solicitacao = barbeiro.post(
         "/api/barbeiros",
         json={
             "nome": "João da Silva",
@@ -168,7 +250,7 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
             "confirmar_senha": "senha-segura-123",
         },
     )
-    outro_barbeiro.post(
+    resposta_outra_solicitacao = outro_barbeiro.post(
         "/api/barbeiros",
         json={
             "nome": "Carlos Souza",
@@ -178,6 +260,23 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
             "confirmar_senha": "senha-segura-123",
         },
     )
+    assert resposta_solicitacao.status_code == 202
+    assert resposta_outra_solicitacao.status_code == 202
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacoes = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
+    for solicitacao in solicitacoes:
+        assert administrador.post(
+            f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+        ).status_code == 200
+    assert barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 200
+    assert outro_barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "carlos@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 200
     cliente.post(
         "/api/clientes",
         json={
@@ -192,14 +291,20 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
     hoje = date.today().isoformat()
     amanha = (date.today() + timedelta(days=1)).isoformat()
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        id_barbeiro = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", ("joao@teste.com",)
+        ).fetchone()[0]
+        id_outro_barbeiro = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", ("carlos@teste.com",)
+        ).fetchone()[0]
         db.executemany(
             "INSERT INTO agendamento "
             "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
             "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (1, 1, "Corte", "1", "João da Silva", hoje, "09:00", 30, 35),
-                (1, 2, "Barba", "1", "João da Silva", amanha, "10:00", 20, 25),
-                (1, 3, "Corte + Barba", "2", "Carlos Souza", hoje, "11:00", 50, 55),
+                (1, 1, "Corte", str(id_barbeiro), "João da Silva", hoje, "09:00", 30, 35),
+                (1, 2, "Barba", str(id_barbeiro), "João da Silva", amanha, "10:00", 20, 25),
+                (1, 3, "Corte + Barba", str(id_outro_barbeiro), "Carlos Souza", hoje, "11:00", 50, 55),
             ],
         )
 
@@ -272,10 +377,22 @@ def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch
             "confirmar_senha": "senha-segura-123",
         },
     )
-    assert resposta_cadastro.status_code == 201
+    assert resposta_cadastro.status_code == 202
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacao = next(
+        item for item in administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
+        if item["email"] == "joao@teste.com"
+    )
+    assert administrador.post(
+        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+    ).status_code == 200
 
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
-        senha_hash = db.execute("SELECT senha_hash FROM barbeiro").fetchone()[0]
+        senha_hash = db.execute(
+            "SELECT senha_hash FROM barbeiro WHERE email = ?", ("joao@teste.com",)
+        ).fetchone()[0]
     assert senha_hash != "senha-segura-123"
 
     cliente.post("/api/sair")

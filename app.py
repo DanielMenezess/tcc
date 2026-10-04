@@ -19,6 +19,11 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 TABELAS = {"clientes": "cliente", "barbeiros": "barbeiro"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 NOME_Barbeiro_RE = re.compile(r"^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$")
+ADMIN_NOME = "Daniel Gabriel"
+ADMIN_EMAIL = "danielgabriel@gmail.com"
+ADMIN_TELEFONE = "1111111111"
+ADMIN_SENHA = "123456"
+ADMIN_SENHA_HASH = generate_password_hash(ADMIN_SENHA)
 
 
 def init_db():
@@ -57,6 +62,21 @@ def init_db():
                 duracao          INTEGER NOT NULL,
                 preco            REAL NOT NULL
             )"""
+        )
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS solicitacao_barbeiro (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome       TEXT NOT NULL,
+                email      TEXT NOT NULL UNIQUE,
+                telefone   TEXT NOT NULL UNIQUE,
+                senha_hash TEXT NOT NULL
+            )"""
+        )
+        db.execute(
+            "INSERT INTO barbeiro (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(email) DO UPDATE SET nome = excluded.nome, "
+            "telefone = excluded.telefone, senha_hash = excluded.senha_hash",
+            (ADMIN_NOME, ADMIN_EMAIL, ADMIN_TELEFONE, ADMIN_SENHA_HASH),
         )
         if db.execute("SELECT COUNT(*) FROM servico").fetchone()[0] == 0:
             db.executemany(
@@ -151,21 +171,37 @@ def cadastrar(tipo):
                     (dados["telefone"],),
                 ).fetchone():
                     erros["telefone"] = "Este telefone já está cadastrado."
+            if db.execute(
+                "SELECT 1 FROM solicitacao_barbeiro WHERE lower(email) = ? LIMIT 1",
+                (dados["email"],),
+            ).fetchone():
+                erros["email"] = "Este e-mail já possui uma solicitação pendente."
+            if db.execute(
+                "SELECT 1 FROM solicitacao_barbeiro WHERE telefone = ? LIMIT 1",
+                (dados["telefone"],),
+            ).fetchone():
+                erros["telefone"] = "Este telefone já possui uma solicitação pendente."
 
             if erros:
                 return jsonify(erros=erros), 409
 
-            cursor = db.execute(
-                f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
-                (
-                    dados["nome"],
-                    dados["email"],
-                    dados["telefone"],
-                    generate_password_hash(senha),
-                ),
-            )
+            senha_hash = generate_password_hash(senha)
+            if tipo == "barbeiros":
+                db.execute(
+                    "INSERT INTO solicitacao_barbeiro (nome, email, telefone, senha_hash) "
+                    "VALUES (?, ?, ?, ?)",
+                    (dados["nome"], dados["email"], dados["telefone"], senha_hash),
+                )
+            else:
+                cursor = db.execute(
+                    f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
+                    (dados["nome"], dados["email"], dados["telefone"], senha_hash),
+                )
     except sqlite3.IntegrityError:
         return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409
+
+    if tipo == "barbeiros":
+        return jsonify(ok=True, solicitacao="pendente"), 202
 
     session.clear()
     session["tipo"] = tipo
@@ -187,7 +223,7 @@ def login():
         with sqlite3.connect(DB_PATH) as db:
             if EMAIL_RE.fullmatch(identificador.lower()):
                 usuarios = db.execute(
-                    f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE email = ?",
+                    f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} WHERE email = ?",
                     (identificador.lower(),),
                 ).fetchall()
             else:
@@ -195,7 +231,7 @@ def login():
                 formato_telefone = re.fullmatch(r"[+\d()\s.-]+", identificador)
                 if formato_telefone and len(telefone) in (10, 11):
                     usuarios = db.execute(
-                        f"SELECT id, nome, senha_hash, telefone FROM {tabela} WHERE telefone = ?",
+                        f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} WHERE telefone = ?",
                         (telefone,),
                     ).fetchall()
 
@@ -226,6 +262,7 @@ def login():
     session["tipo"] = tipo
     session["usuario_id"] = usuario[0]
     session["nome"] = usuario[1]
+    session["administrador"] = tipo == "barbeiros" and usuario[4] == ADMIN_EMAIL
     return jsonify(ok=True)
 
 
@@ -233,11 +270,72 @@ def login():
 def sessao_atual():
     if not session.get("tipo"):
         return jsonify(autenticado=False)
-    return jsonify(
-        autenticado=True,
-        tipo=session["tipo"],
-        nome=session["nome"],
-    )
+    dados_sessao = {
+        "autenticado": True,
+        "tipo": session["tipo"],
+        "nome": session["nome"],
+    }
+    if session["tipo"] == "barbeiros":
+        dados_sessao["administrador"] = session.get("administrador", False)
+    return jsonify(dados_sessao)
+
+
+def exigir_administrador():
+    return session.get("tipo") == "barbeiros" and session.get("administrador") is True
+
+
+@app.get("/api/solicitacoes-barbeiros")
+def listar_solicitacoes_barbeiros():
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode consultar solicitações."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        solicitacoes = [dict(row) for row in db.execute(
+            "SELECT id, nome, email, telefone FROM solicitacao_barbeiro ORDER BY id"
+        )]
+    return jsonify(solicitacoes=solicitacoes)
+
+
+@app.post("/api/solicitacoes-barbeiros/<int:solicitacao_id>/aprovar")
+def aprovar_solicitacao_barbeiro(solicitacao_id):
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode aprovar solicitações."), 403
+
+    try:
+        with sqlite3.connect(DB_PATH) as db:
+            db.execute("BEGIN IMMEDIATE")
+            solicitacao = db.execute(
+                "SELECT nome, email, telefone, senha_hash FROM solicitacao_barbeiro WHERE id = ?",
+                (solicitacao_id,),
+            ).fetchone()
+            if not solicitacao:
+                return jsonify(erro="Solicitação não encontrada."), 404
+
+            db.execute(
+                "INSERT INTO barbeiro (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
+                solicitacao,
+            )
+            db.execute("DELETE FROM solicitacao_barbeiro WHERE id = ?", (solicitacao_id,))
+    except sqlite3.IntegrityError:
+        return jsonify(erro="O e-mail ou telefone já está cadastrado."), 409
+
+    return jsonify(ok=True), 200
+
+
+@app.delete("/api/solicitacoes-barbeiros/<int:solicitacao_id>")
+def recusar_solicitacao_barbeiro(solicitacao_id):
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode recusar solicitações."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        cursor = db.execute(
+            "DELETE FROM solicitacao_barbeiro WHERE id = ?",
+            (solicitacao_id,),
+        )
+    if cursor.rowcount == 0:
+        return jsonify(erro="Solicitação não encontrada."), 404
+    return "", 204
 
 
 @app.post("/api/sair")
