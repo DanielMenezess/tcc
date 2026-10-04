@@ -588,6 +588,29 @@ def testar_nome_de_barbeiro_valido():
     assert resultado["nome"] == "João da Silva"
 
 
+def testar_nome_de_conta_nao_aceita_numeros_em_nenhum_perfil(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+
+    for tipo, nome, email in (
+        ("clientes", "Maria 2 Silva", "maria@teste.com"),
+        ("barbeiros", "João 2 Silva", "joao@teste.com"),
+    ):
+        resposta = cliente.post(
+            f"/api/{tipo}",
+            json={
+                "nome": nome,
+                "email": email,
+                "telefone": "41999999999" if tipo == "clientes" else "41988888888",
+                "senha": "senha-segura-123",
+                "confirmar_senha": "senha-segura-123",
+            },
+        )
+        assert resposta.status_code == 400
+        assert resposta.json["erros"]["nome"] == "O nome da conta não pode conter números."
+
+
 def testar_nome_de_barbeiro_rejeita_minusculo_e_caracteres_invalidos():
     casos_invalidos = [
         "joão da Silva",

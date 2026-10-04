@@ -125,7 +125,9 @@ def validar(dados, tipo=None):
     telefone = re.sub(r"\D", "", str(dados.get("telefone", "")))
 
     erros = {}
-    if tipo == "barbeiros":
+    if any(caractere.isnumeric() for caractere in nome):
+        erros["nome"] = "O nome da conta não pode conter números."
+    elif tipo == "barbeiros":
         if not nome or not NOME_Barbeiro_RE.fullmatch(nome):
             erros["nome"] = "Use letras maiúsculas no início de cada nome e evite números ou símbolos."
     elif len(nome) < 3:

@@ -6,6 +6,7 @@ const total = document.getElementById("total-servicos");
 const mensagemServico = document.getElementById("mensagem");
 const mensagemCadastro = document.getElementById("mensagem-cadastro");
 const mensagemLogin = document.getElementById("mensagem-login");
+const campoNomeCadastro = document.getElementById("cadastro-nome");
 const campoTelefone = document.getElementById("cadastro-telefone");
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
@@ -163,6 +164,15 @@ campoTelefone.addEventListener("input", () => {
   campoTelefone.value = formatarTelefone(campoTelefone.value);
   const novaPosicao = posicaoDoCursor(campoTelefone.value, quantidadeDigitos);
   campoTelefone.setSelectionRange(novaPosicao, novaPosicao);
+});
+
+campoNomeCadastro.addEventListener("input", () => {
+  const posicaoAtual = campoNomeCadastro.selectionStart ?? campoNomeCadastro.value.length;
+  const textoAntesDoCursor = campoNomeCadastro.value.slice(0, posicaoAtual);
+  const nomeSemNumeros = campoNomeCadastro.value.replace(/\p{N}/gu, "");
+  const cursorSemNumeros = textoAntesDoCursor.replace(/\p{N}/gu, "").length;
+  campoNomeCadastro.value = nomeSemNumeros;
+  campoNomeCadastro.setSelectionRange(cursorSemNumeros, cursorSemNumeros);
 });
 
 function mostrarCadastro() {
