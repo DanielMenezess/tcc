@@ -120,7 +120,9 @@ function renderizarHorarios() {
     botao.type = "button";
     botao.className = "botao-horario";
     botao.dataset.horario = horario;
-    botao.textContent = horario;
+    const textoHorario = document.createElement("span");
+    textoHorario.textContent = horario;
+    botao.append(textoHorario);
     botao.disabled = horario === "12:00" || horario === "12:30" || horarioJaPassou;
     botao.setAttribute("aria-pressed", String(horario === horarioSelecionado));
     listaHorarios.append(botao);

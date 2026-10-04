@@ -292,6 +292,10 @@ body {
   cursor: not-allowed;
 }
 
+.botao-horario:disabled span {
+  text-decoration: line-through;
+}
+
 .servico {
   display: flex;
   min-height: 46px;
