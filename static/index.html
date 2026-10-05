@@ -96,6 +96,7 @@
         </div>
         <p id="status-proximo-agendamento" class="texto-introdutorio" role="status">Carregando agendamento...</p>
         <dl id="detalhes-proximo-agendamento" class="detalhes-agendamento"></dl>
+        <p id="status-decisao-agendamento" class="status-agendamento" aria-live="polite" hidden></p>
       </section>
       <section id="painel-solicitacoes-barbeiros" class="painel" aria-labelledby="titulo-solicitacoes-barbeiros" hidden>
         <div class="cabecalho-painel">
@@ -141,6 +142,16 @@
             </ul>
           </div>
         </div>
+      </section>
+      <section id="painel-agendamentos-pendentes" class="painel" aria-labelledby="titulo-agendamentos-pendentes" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agendamentos-pendentes">Agendamentos pendentes</h2>
+          <span id="total-agendamentos-pendentes" class="contador" aria-live="polite"></span>
+        </div>
+        <p id="mensagem-agendamentos-pendentes" class="mensagem" aria-live="polite"></p>
+        <ul id="lista-agendamentos-pendentes" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Carregando agendamentos pendentes...</li>
+        </ul>
       </section>
       <section id="painel-agenda-barbeiro" class="painel painel-formulario" aria-labelledby="titulo-agenda-barbeiro" hidden>
         <div class="cabecalho-painel">
@@ -210,9 +221,9 @@
       </section>
 
       <section id="painel-confirmar-agendamento" class="painel" aria-labelledby="titulo-confirmar-agendamento" hidden>
-        <h2 id="titulo-confirmar-agendamento">Confirme seu agendamento</h2>
+        <h2 id="titulo-confirmar-agendamento">Solicite um agendamento</h2>
         <p id="resumo-agendamento" class="texto-introdutorio">Escolha o serviço, barbeiro, data e horário.</p>
-        <button id="botao-confirmar-agendamento" class="botao-principal" type="button" disabled>Confirmar agendamento</button>
+        <button id="botao-confirmar-agendamento" class="botao-principal" type="button" disabled>Solicitar agendamento</button>
         <p id="mensagem-agendamento" class="mensagem" aria-live="polite"></p>
       </section>
 

@@ -14,6 +14,33 @@ def entrar_administrador(cliente):
     )
 
 
+def testar_migracao_mantem_agendamentos_antigos_confirmados(tmp_path, monkeypatch):
+    caminho_db = tmp_path / "fadehouse.db"
+    monkeypatch.setattr(app_module, "DB_PATH", caminho_db)
+    with app_module.sqlite3.connect(caminho_db) as db:
+        db.execute(
+            "CREATE TABLE agendamento ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, cliente_id INTEGER NOT NULL, "
+            "servico_id INTEGER NOT NULL, servico_nome TEXT NOT NULL, "
+            "barbeiro_id TEXT NOT NULL, barbeiro_nome TEXT NOT NULL, "
+            "data_agendamento TEXT NOT NULL, horario TEXT NOT NULL, "
+            "duracao INTEGER NOT NULL, preco REAL NOT NULL)"
+        )
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) "
+            "VALUES (1, 1, 'Corte', '1', 'Daniel Gabriel', '2026-10-06', '09:00', 30, 35)"
+        )
+
+    app_module.init_db()
+
+    with app_module.sqlite3.connect(caminho_db) as db:
+        assert db.execute("SELECT status FROM agendamento WHERE id = 1").fetchone() == (
+            "confirmado",
+        )
+
+
 def testar_login_de_cliente_cadastrado(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
@@ -363,10 +390,79 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
         "duracao": 30,
         "preco": 35.0,
         "barbeiro": "Daniel Gabriel",
+        "status": "pendente",
     }
     assert app_module.app.test_client().get("/api/meu-agendamento").status_code == 403
+    assert cliente.get("/api/agendamentos-pendentes").status_code == 403
+    barbeiro = app_module.app.test_client()
+    assert barbeiro.post(
+        "/api/login",
+        json={
+            "tipo": "barbeiros",
+            "identificador": app_module.ADMIN_EMAIL,
+            "senha": app_module.ADMIN_SENHA,
+        },
+    ).status_code == 200
+    pendentes = barbeiro.get("/api/agendamentos-pendentes")
+    assert pendentes.status_code == 200
+    assert pendentes.json["agendamentos"] == [
+        {
+            "id": 1,
+            "data": (date.today() + timedelta(days=1)).isoformat(),
+            "horario": "09:00",
+            "servico": "Corte",
+            "duracao": 30,
+            "preco": 35.0,
+            "cliente": "Maria da Silva",
+        }
+    ]
+    decisao = barbeiro.post("/api/agendamentos/1/decisao", json={"status": "confirmado"})
+    assert decisao.status_code == 200
+    assert barbeiro.get("/api/agendamentos-pendentes").json["agendamentos"] == []
+    assert cliente.get("/api/meu-agendamento").json["agendamento"]["status"] == "confirmado"
+    assert barbeiro.post(
+        "/api/agendamentos/1/decisao", json={"status": "cancelado"}
+    ).status_code == 409
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
         assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 1
+
+
+def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    dia = (date.today() + timedelta(days=1)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        barbeiro_id = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+
+    dados = {"servico_id": 1, "barbeiro_id": str(barbeiro_id), "data": dia, "horario": "09:00"}
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 201
+    barbeiro = app_module.app.test_client()
+    assert barbeiro.post(
+        "/api/login",
+        json={
+            "tipo": "barbeiros",
+            "identificador": app_module.ADMIN_EMAIL,
+            "senha": app_module.ADMIN_SENHA,
+        },
+    ).status_code == 200
+    assert barbeiro.post(
+        "/api/agendamentos/1/decisao", json={"status": "cancelado"}
+    ).status_code == 200
+    assert cliente.get("/api/meu-agendamento").json["agendamento"]["status"] == "cancelado"
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 201
 
 
 def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monkeypatch):

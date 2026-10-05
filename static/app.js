@@ -19,6 +19,7 @@ const telaServicos = document.getElementById("tela-servicos");
 const painelProximoAgendamento = document.getElementById("painel-proximo-agendamento");
 const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
 const detalhesProximoAgendamento = document.getElementById("detalhes-proximo-agendamento");
+const statusDecisaoAgendamento = document.getElementById("status-decisao-agendamento");
 const painelAdicionar = document.getElementById("painel-adicionar");
 const painelSolicitacoesBarbeiros = document.getElementById("painel-solicitacoes-barbeiros");
 const listaSolicitacoesBarbeiros = document.getElementById("lista-solicitacoes-barbeiros");
@@ -35,6 +36,10 @@ const abasContas = Array.from(document.querySelectorAll("[data-aba-contas]"));
 const painelContasClientes = document.getElementById("grupo-contas-clientes");
 const painelContasBarbeiros = document.getElementById("grupo-contas-barbeiros");
 const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
+const painelAgendamentosPendentes = document.getElementById("painel-agendamentos-pendentes");
+const listaAgendamentosPendentes = document.getElementById("lista-agendamentos-pendentes");
+const totalAgendamentosPendentes = document.getElementById("total-agendamentos-pendentes");
+const mensagemAgendamentosPendentes = document.getElementById("mensagem-agendamentos-pendentes");
 const painelHistoricoServicos = document.getElementById("painel-historico-servicos");
 const tituloHistoricoServicos = document.getElementById("titulo-historico-servicos");
 const listaHistoricoServicos = document.getElementById("lista-historico-servicos");
@@ -77,7 +82,7 @@ let barbeiroSelecionadoId = null;
 let barbeiroSelecionadoNome = null;
 let dataSelecionada = null;
 let horarioSelecionado = null;
-let agendamentoConfirmado = false;
+let agendamentoSolicitado = false;
 let confirmandoAgendamento = false;
 let contasClientes = [];
 let contasBarbeiros = [];
@@ -118,9 +123,9 @@ function atualizarResumoAgendamento() {
   const completo = Boolean(
     servicoSelecionadoId && barbeiroSelecionadoId && dataSelecionada && horarioSelecionado,
   );
-  botaoConfirmarAgendamento.disabled = !completo || confirmandoAgendamento || agendamentoConfirmado;
+  botaoConfirmarAgendamento.disabled = !completo || confirmandoAgendamento || agendamentoSolicitado;
 
-  if (!agendamentoConfirmado) {
+  if (!agendamentoSolicitado) {
     resumoAgendamento.textContent = completo
       ? `${servicoSelecionadoNome} com ${barbeiroSelecionadoNome}, em ${dataSelecionada.split("-").reverse().join("/")} às ${horarioSelecionado}.`
       : "Escolha o serviço, barbeiro, data e horário.";
@@ -128,10 +133,10 @@ function atualizarResumoAgendamento() {
 }
 
 function selecaoAgendamentoAlterada() {
-  agendamentoConfirmado = false;
+  agendamentoSolicitado = false;
   mensagemAgendamento.textContent = "";
   mensagemAgendamento.className = "mensagem";
-  botaoConfirmarAgendamento.textContent = "Confirmar agendamento";
+  botaoConfirmarAgendamento.textContent = "Solicitar agendamento";
   atualizarResumoAgendamento();
 }
 
@@ -217,6 +222,7 @@ function mostrarServicos(usuario) {
   telaLogin.hidden = true;
   telaServicos.hidden = false;
   painelProximoAgendamento.hidden = tipoUsuario !== "clientes";
+  painelAgendamentosPendentes.hidden = tipoUsuario !== "barbeiros";
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
   painelContasAdministrador.hidden = !usuario.administrador;
@@ -238,10 +244,10 @@ function mostrarServicos(usuario) {
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
   horarioSelecionadoTexto.className = "mensagem";
-  agendamentoConfirmado = false;
+  agendamentoSolicitado = false;
   confirmandoAgendamento = false;
   mensagemAgendamento.textContent = "";
-  botaoConfirmarAgendamento.textContent = "Confirmar agendamento";
+  botaoConfirmarAgendamento.textContent = "Solicitar agendamento";
   atualizarResumoAgendamento();
   renderizarHorarios();
   document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
@@ -253,6 +259,7 @@ function mostrarServicos(usuario) {
     carregarProximoAgendamento();
     carregarBarbeiros();
   } else {
+    carregarAgendamentosPendentes();
     campoDataAgendaBarbeiro.value = dataLocalAtual();
     carregarAgendamentosBarbeiro(true);
     tituloHistoricoServicos.textContent = usuario.administrador
@@ -266,9 +273,12 @@ function mostrarServicos(usuario) {
   }
 }
 
-async function carregarProximoAgendamento() {
-  statusProximoAgendamento.textContent = "Carregando agendamento...";
-  detalhesProximoAgendamento.replaceChildren();
+async function carregarProximoAgendamento(silencioso = false) {
+  if (!silencioso) {
+    statusProximoAgendamento.textContent = "Carregando agendamento...";
+    detalhesProximoAgendamento.replaceChildren();
+    statusDecisaoAgendamento.hidden = true;
+  }
 
   try {
     const resposta = await fetch("/api/meu-agendamento");
@@ -276,11 +286,14 @@ async function carregarProximoAgendamento() {
     if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar agendamento.");
     if (!corpo.agendamento) {
       statusProximoAgendamento.textContent = "Você não tem agendamentos futuros.";
+      detalhesProximoAgendamento.replaceChildren();
+      statusDecisaoAgendamento.hidden = true;
       return;
     }
 
     statusProximoAgendamento.textContent = "";
     const agendamento = corpo.agendamento;
+    detalhesProximoAgendamento.replaceChildren();
     const dados = [
       ["Horário", agendamento.horario],
       ["Data", agendamento.data.split("-").reverse().join("/")],
@@ -300,10 +313,110 @@ async function carregarProximoAgendamento() {
       item.append(titulo, detalhe);
       detalhesProximoAgendamento.append(item);
     });
+    statusDecisaoAgendamento.className = `status-agendamento status-${agendamento.status}`;
+    statusDecisaoAgendamento.textContent = `Status: ${agendamento.status}`;
+    statusDecisaoAgendamento.hidden = false;
   } catch {
-    statusProximoAgendamento.textContent = "Não foi possível carregar seu próximo agendamento.";
+    if (!silencioso) {
+      statusProximoAgendamento.textContent = "Não foi possível carregar seu próximo agendamento.";
+      statusDecisaoAgendamento.hidden = true;
+    }
   }
 }
+
+async function carregarAgendamentosPendentes() {
+  listaAgendamentosPendentes.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando agendamentos pendentes...";
+  listaAgendamentosPendentes.append(carregando);
+  totalAgendamentosPendentes.textContent = "";
+
+  try {
+    const resposta = await fetch("/api/agendamentos-pendentes");
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar agendamentos pendentes.");
+    listaAgendamentosPendentes.replaceChildren();
+    totalAgendamentosPendentes.textContent = `${corpo.agendamentos.length} ${corpo.agendamentos.length === 1 ? "solicitação" : "solicitações"}`;
+
+    if (corpo.agendamentos.length === 0) {
+      const vazio = document.createElement("li");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhum agendamento pendente.";
+      listaAgendamentosPendentes.append(vazio);
+      return;
+    }
+
+    corpo.agendamentos.forEach((agendamento) => {
+      const item = document.createElement("li");
+      item.className = "servico";
+      const informacoes = document.createElement("div");
+      informacoes.className = "servico-info";
+      const titulo = document.createElement("strong");
+      titulo.textContent = agendamento.servico;
+      const detalhe = document.createElement("span");
+      detalhe.className = "servico-detalhe";
+      detalhe.textContent = `${agendamento.cliente || "Cliente não encontrado"} · ${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario} · ${agendamento.duracao} min · R$ ${formatarPreco.format(agendamento.preco)}`;
+      informacoes.append(titulo, detalhe);
+
+      const acoes = document.createElement("div");
+      acoes.className = "acoes-solicitacao";
+      [["confirmado", "Aceitar", "botao-aprovar"], ["cancelado", "Recusar", "botao-recusar"]].forEach(([status, texto, classe]) => {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = classe;
+        botao.dataset.id = agendamento.id;
+        botao.dataset.status = status;
+        botao.textContent = texto;
+        acoes.append(botao);
+      });
+
+      item.append(informacoes, acoes);
+      listaAgendamentosPendentes.append(item);
+    });
+  } catch {
+    totalAgendamentosPendentes.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar os agendamentos pendentes.";
+    listaAgendamentosPendentes.replaceChildren(erro);
+  }
+}
+
+painelAgendamentosPendentes.addEventListener("click", async (evento) => {
+  const botao = evento.target.closest("[data-status]");
+  if (!botao) return;
+
+  const item = botao.closest(".servico");
+  item.querySelectorAll("button").forEach((acao) => {
+    acao.disabled = true;
+  });
+  mensagemAgendamentosPendentes.textContent = "";
+  mensagemAgendamentosPendentes.className = "mensagem";
+
+  try {
+    const resposta = await fetch(`/api/agendamentos/${botao.dataset.id}/decisao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: botao.dataset.status }),
+    });
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível atualizar o agendamento.");
+
+    mensagemAgendamentosPendentes.textContent = botao.dataset.status === "confirmado"
+      ? "Agendamento confirmado."
+      : "Agendamento cancelado.";
+    if (botao.dataset.status === "confirmado") {
+      mensagemAgendamentosPendentes.classList.add("sucesso");
+    }
+    await Promise.all([carregarAgendamentosPendentes(), carregarAgendamentosBarbeiro()]);
+  } catch (erro) {
+    mensagemAgendamentosPendentes.textContent = erro.message;
+    item.querySelectorAll("button").forEach((acao) => {
+      acao.disabled = false;
+    });
+  }
+});
 
 function renderizarHistoricoServicos(historico, administrador) {
   listaHistoricoServicos.replaceChildren();
@@ -972,6 +1085,10 @@ formLogin.addEventListener("submit", async (evento) => {
   }
 });
 
+window.setInterval(() => {
+  if (tipoUsuario === "clientes") carregarProximoAgendamento(true);
+}, 10000);
+
 lista.addEventListener("click", async (evento) => {
   const botaoEscolher = evento.target.closest(".botao-escolher");
   if (botaoEscolher) {
@@ -1062,12 +1179,11 @@ botaoConfirmarAgendamento.addEventListener("click", async () => {
       return;
     }
 
-    agendamentoConfirmado = true;
+    agendamentoSolicitado = true;
     const agendamento = corpo.agendamento;
     resumoAgendamento.textContent = `${agendamento.servico} com ${agendamento.barbeiro}, em ${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario}.`;
-    mensagemAgendamento.textContent = "Agendamento confirmado.";
-    mensagemAgendamento.classList.add("sucesso");
-    botaoConfirmarAgendamento.textContent = "Agendamento confirmado";
+    mensagemAgendamento.textContent = "Solicitação enviada ao barbeiro, aguardando confirmação.";
+    botaoConfirmarAgendamento.textContent = "Solicitação enviada";
     await carregarProximoAgendamento();
   } catch {
     mensagemAgendamento.textContent = "Sem conexão com o servidor. Tente novamente.";

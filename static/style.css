@@ -203,6 +203,24 @@ body {
   color: var(--sucesso);
 }
 
+.status-agendamento {
+  margin: 14px 0 0;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.status-pendente {
+  color: var(--suave);
+}
+
+.status-confirmado {
+  color: var(--sucesso);
+}
+
+.status-cancelado {
+  color: var(--erro);
+}
+
 .texto-introdutorio {
   margin: 12px 0 18px;
   color: var(--suave);
