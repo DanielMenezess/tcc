@@ -63,6 +63,7 @@ const campoDataAgendamento = document.getElementById("data-agendamento");
 const mensagemData = document.getElementById("mensagem-data");
 const painelEscolherHorario = document.getElementById("painel-escolher-horario");
 const listaHorarios = document.getElementById("lista-horarios");
+const intervalosHorariosOcupadosTexto = document.getElementById("intervalos-horarios-ocupados");
 const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
 const faixaHorarios = document.getElementById("faixa-horarios");
 const campoDataAgendaBarbeiro = document.getElementById("data-agenda-barbeiro");
@@ -104,6 +105,11 @@ let barbeiroSelecionadoId = null;
 let barbeiroSelecionadoNome = null;
 let dataSelecionada = null;
 let horarioSelecionado = null;
+let duracaoServicoSelecionado = 0;
+let intervalosHorariosOcupados = [];
+let carregandoDisponibilidadeHorarios = false;
+let erroDisponibilidadeHorarios = false;
+let requisicaoDisponibilidadeHorarios = 0;
 let agendamentoSolicitado = false;
 let confirmandoAgendamento = false;
 let contasClientes = [];
@@ -177,6 +183,31 @@ function selecaoAgendamentoAlterada() {
 function renderizarHorarios() {
   listaHorarios.replaceChildren();
   const agora = new Date();
+  const selecaoCompleta = Boolean(
+    dataSelecionada && servicoSelecionadoId && barbeiroSelecionadoId && duracaoServicoSelecionado,
+  );
+  const paraMinutos = (horario) => {
+    const [hora, minuto] = horario.split(":").map(Number);
+    return hora * 60 + minuto;
+  };
+
+  if (!dataSelecionada) {
+    intervalosHorariosOcupadosTexto.textContent = "";
+  } else if (!servicoSelecionadoId || !barbeiroSelecionadoId) {
+    intervalosHorariosOcupadosTexto.textContent = "Escolha um serviço e um barbeiro para consultar os horários.";
+  } else if (carregandoDisponibilidadeHorarios) {
+    intervalosHorariosOcupadosTexto.textContent = "Verificando horários disponíveis...";
+  } else if (erroDisponibilidadeHorarios) {
+    intervalosHorariosOcupadosTexto.textContent = "Não foi possível consultar os horários. Tente novamente.";
+  } else if (intervalosHorariosOcupados.length > 0) {
+    const horariosOcupados = intervalosHorariosOcupados
+      .map(({ inicio, fim }) => `${inicio}–${fim}`)
+      .join(" · ");
+    intervalosHorariosOcupadosTexto.textContent = `Horários ocupados: ${horariosOcupados}.`;
+  } else {
+    intervalosHorariosOcupadosTexto.textContent = "Não há horários ocupados nesta data.";
+  }
+
   for (let minutos = 9 * 60; minutos <= 19 * 60 + 30; minutos += 30) {
     const hora = String(Math.floor(minutos / 60)).padStart(2, "0");
     const minuto = String(minutos % 60).padStart(2, "0");
@@ -190,9 +221,59 @@ function renderizarHorarios() {
     const textoHorario = document.createElement("span");
     textoHorario.textContent = horario;
     botao.append(textoHorario);
+    const minutosFim = minutos + duracaoServicoSelecionado;
+    const conflito = selecaoCompleta && intervalosHorariosOcupados.find((intervalo) => (
+      minutos < paraMinutos(intervalo.fim) && paraMinutos(intervalo.inicio) < minutosFim
+    ));
     botao.disabled = horario === "12:00" || horario === "12:30" || horarioJaPassou;
+    botao.disabled = botao.disabled
+      || !selecaoCompleta
+      || carregandoDisponibilidadeHorarios
+      || erroDisponibilidadeHorarios
+      || minutosFim > 20 * 60
+      || Boolean(conflito);
+    if (conflito) {
+      botao.title = `Indisponível: sobrepõe o horário ${conflito.inicio}–${conflito.fim}`;
+      botao.setAttribute("aria-label", `${horario}, ocupado; conflito com ${conflito.inicio} até ${conflito.fim}`);
+    }
     botao.setAttribute("aria-pressed", String(horario === horarioSelecionado));
     listaHorarios.append(botao);
+  }
+}
+
+async function carregarDisponibilidadeHorarios() {
+  const requisicaoAtual = ++requisicaoDisponibilidadeHorarios;
+  intervalosHorariosOcupados = [];
+  erroDisponibilidadeHorarios = false;
+  if (!dataSelecionada || !servicoSelecionadoId || !barbeiroSelecionadoId) {
+    carregandoDisponibilidadeHorarios = false;
+    renderizarHorarios();
+    return;
+  }
+
+  carregandoDisponibilidadeHorarios = true;
+  renderizarHorarios();
+  const parametros = new URLSearchParams({
+    barbeiro_id: barbeiroSelecionadoId,
+    servico_id: servicoSelecionadoId,
+    data: dataSelecionada,
+  });
+
+  try {
+    const resposta = await fetch(`/api/horarios-disponiveis?${parametros}`);
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao consultar horários.");
+    if (requisicaoAtual !== requisicaoDisponibilidadeHorarios) return;
+    intervalosHorariosOcupados = corpo.ocupados;
+  } catch {
+    if (requisicaoAtual === requisicaoDisponibilidadeHorarios) {
+      erroDisponibilidadeHorarios = true;
+    }
+  } finally {
+    if (requisicaoAtual === requisicaoDisponibilidadeHorarios) {
+      carregandoDisponibilidadeHorarios = false;
+      renderizarHorarios();
+    }
   }
 }
 
@@ -367,6 +448,7 @@ function mostrarServicos(usuario) {
   instrucaoServicos.hidden = tipoUsuario !== "clientes";
   servicoSelecionadoId = null;
   servicoSelecionadoNome = null;
+  duracaoServicoSelecionado = 0;
   barbeiroSelecionadoId = null;
   barbeiroSelecionadoNome = null;
   dataSelecionada = null;
@@ -378,6 +460,10 @@ function mostrarServicos(usuario) {
   horarioSelecionadoTexto.className = "mensagem";
   agendamentoSolicitado = false;
   confirmandoAgendamento = false;
+  intervalosHorariosOcupados = [];
+  carregandoDisponibilidadeHorarios = false;
+  erroDisponibilidadeHorarios = false;
+  requisicaoDisponibilidadeHorarios += 1;
   mensagemAgendamento.textContent = "";
   botaoConfirmarAgendamento.textContent = "Solicitar agendamento";
   atualizarResumoAgendamento();
@@ -1024,7 +1110,7 @@ campoDataAgendamento.addEventListener("change", () => {
     painelEscolherHorario.hidden = true;
     horarioSelecionadoTexto.textContent = "";
     horarioSelecionadoTexto.className = "mensagem";
-    renderizarHorarios();
+    carregarDisponibilidadeHorarios();
     mensagemData.textContent = "Escolha hoje ou uma data futura.";
     selecaoAgendamentoAlterada();
     return;
@@ -1040,6 +1126,10 @@ campoDataAgendamento.addEventListener("change", () => {
   faixaHorarios.hidden = domingo;
 
   if (domingo) {
+    requisicaoDisponibilidadeHorarios += 1;
+    intervalosHorariosOcupados = [];
+    carregandoDisponibilidadeHorarios = false;
+    intervalosHorariosOcupadosTexto.textContent = "";
     mensagemData.textContent = "A barbearia não abre aos domingos.";
     listaHorarios.replaceChildren();
     horarioSelecionadoTexto.textContent = "Não há horários disponíveis, pois a barbearia não abre aos domingos.";
@@ -1049,7 +1139,7 @@ campoDataAgendamento.addEventListener("change", () => {
   }
 
   mensagemData.textContent = `Horários para ${dia}/${mes}/${ano}.`;
-  renderizarHorarios();
+  carregarDisponibilidadeHorarios();
   selecaoAgendamentoAlterada();
 });
 seletorPerfilLogin.forEach((botao) => {
@@ -1099,6 +1189,7 @@ function renderizarServicos(servicos) {
       escolher.type = "button";
       escolher.className = "botao-escolher";
       escolher.dataset.id = servico.id;
+      escolher.dataset.duracao = servico.duracao;
       const selecionado = String(servico.id) === servicoSelecionadoId;
       escolher.textContent = selecionado ? "Desselecionar" : "Escolher";
       escolher.setAttribute("aria-pressed", String(selecionado));
@@ -1379,15 +1470,20 @@ lista.addEventListener("click", async (evento) => {
   if (botaoEscolher) {
     const deselecionando = botaoEscolher.dataset.id === servicoSelecionadoId;
     servicoSelecionadoId = deselecionando ? null : botaoEscolher.dataset.id;
+    duracaoServicoSelecionado = deselecionando ? 0 : Number(botaoEscolher.dataset.duracao);
     servicoSelecionadoNome = deselecionando
       ? null
       : botaoEscolher.closest(".servico").querySelector("strong").textContent;
+    horarioSelecionado = null;
+    horarioSelecionadoTexto.textContent = "";
+    horarioSelecionadoTexto.className = "mensagem";
     lista.querySelectorAll(".botao-escolher").forEach((botao) => {
       const selecionado = botao.dataset.id === servicoSelecionadoId;
       botao.textContent = selecionado ? "Desselecionar" : "Escolher";
       botao.setAttribute("aria-pressed", String(selecionado));
       botao.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${botao.closest(".servico").querySelector("strong").textContent}`);
     });
+    carregarDisponibilidadeHorarios();
     selecaoAgendamentoAlterada();
     return;
   }
@@ -1416,12 +1512,16 @@ listaBarbeiros.addEventListener("click", (evento) => {
   barbeiroSelecionadoNome = deselecionando
     ? null
     : botao.closest(".servico").querySelector("strong").textContent;
+  horarioSelecionado = null;
+  horarioSelecionadoTexto.textContent = "";
+  horarioSelecionadoTexto.className = "mensagem";
   listaBarbeiros.querySelectorAll(".botao-escolher").forEach((item) => {
     const selecionado = item.dataset.id === barbeiroSelecionadoId;
     item.textContent = selecionado ? "Desselecionar" : "Escolher";
     item.setAttribute("aria-pressed", String(selecionado));
     item.setAttribute("aria-label", `${selecionado ? "Desselecionar" : "Escolher"} ${item.closest(".servico").querySelector("strong").textContent}`);
   });
+  carregarDisponibilidadeHorarios();
   selecaoAgendamentoAlterada();
 });
 
@@ -1470,6 +1570,7 @@ botaoConfirmarAgendamento.addEventListener("click", async () => {
     mensagemAgendamento.textContent = "Solicitação enviada ao barbeiro, aguardando confirmação.";
     botaoConfirmarAgendamento.textContent = "Solicitação enviada";
     await carregarProximosAgendamentos();
+    await carregarDisponibilidadeHorarios();
   } catch {
     mensagemAgendamento.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {

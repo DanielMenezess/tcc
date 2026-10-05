@@ -896,6 +896,52 @@ def testar_agendamento_rejeita_horario_sobreposto(tmp_path, monkeypatch):
     assert "reservado" in resposta.json["erro"]
 
 
+def testar_disponibilidade_considera_duracao_real_do_servico(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    assert cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+
+    data = (date.today() + timedelta(days=1)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        barbeiro_id = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+        cliente_id = db.execute(
+            "SELECT id FROM cliente WHERE email = ?", ("maria@teste.com",)
+        ).fetchone()[0]
+        db.execute("UPDATE servico SET duracao = 40 WHERE id = 1")
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco, status) "
+            "VALUES (?, 1, 'Corte', ?, 'Daniel Gabriel', ?, '15:30', 40, 35, 'pendente')",
+            (cliente_id, str(barbeiro_id), data),
+        )
+
+    disponibilidade = cliente.get(
+        f"/api/horarios-disponiveis?barbeiro_id={barbeiro_id}&servico_id=1&data={data}"
+    )
+    assert disponibilidade.status_code == 200
+    assert disponibilidade.json["duracao"] == 40
+    assert disponibilidade.json["ocupados"] == [{"inicio": "15:30", "fim": "16:10"}]
+
+    dados = {"servico_id": 1, "barbeiro_id": str(barbeiro_id), "data": data}
+    dados["horario"] = "16:00"
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 409
+    dados["horario"] = "16:30"
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 201
+
+
 def testar_barbeiro_fixo_joao_nao_e_listado_ou_aceito(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()

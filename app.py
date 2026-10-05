@@ -482,6 +482,53 @@ def listar_servicos():
     return jsonify(servicos=servicos)
 
 
+@app.get("/api/horarios-disponiveis")
+def listar_horarios_disponiveis():
+    if session.get("tipo") != "clientes" or not conta_ativa():
+        return jsonify(erro="Apenas clientes podem consultar horários disponíveis."), 403
+
+    dados = request.args
+    try:
+        barbeiro_id = int(dados.get("barbeiro_id", ""))
+        servico_id = int(dados.get("servico_id", ""))
+        data_agendamento = date.fromisoformat(dados.get("data", ""))
+    except (TypeError, ValueError):
+        return jsonify(erro="Escolha serviço, barbeiro e data válidos."), 400
+    data_texto = dados.get("data", "")
+    if data_agendamento.isoformat() != data_texto or data_agendamento < agora_local().date():
+        return jsonify(erro="A data do agendamento não pode ser anterior a hoje."), 400
+
+    with sqlite3.connect(DB_PATH) as db:
+        barbeiro = db.execute("SELECT 1 FROM barbeiro WHERE id = ?", (barbeiro_id,)).fetchone()
+        servico = db.execute("SELECT duracao FROM servico WHERE id = ?", (servico_id,)).fetchone()
+        if not barbeiro:
+            return jsonify(erro="O barbeiro selecionado não existe mais."), 404
+        if not servico:
+            return jsonify(erro="O serviço selecionado não existe mais."), 404
+        ocupados = db.execute(
+            "SELECT horario, duracao FROM agendamento "
+            "WHERE barbeiro_id = ? AND data_agendamento = ? "
+            "AND status IN ('pendente', 'confirmado') "
+            "ORDER BY horario, id",
+            (str(barbeiro_id), data_texto),
+        ).fetchall()
+
+    intervalos_ocupados = []
+    for horario, duracao in ocupados:
+        inicio = horario_local(data_texto, horario)
+        fim = inicio + timedelta(minutes=duracao)
+        intervalos_ocupados.append({
+            "inicio": inicio.strftime("%H:%M"),
+            "fim": fim.strftime("%H:%M"),
+        })
+
+    return jsonify(
+        duracao=servico[0],
+        horario_fechamento="20:00",
+        ocupados=intervalos_ocupados,
+    )
+
+
 @app.get("/api/agendamentos-pendentes")
 def listar_agendamentos_pendentes():
     if session.get("tipo") != "barbeiros" or not conta_ativa():
@@ -748,6 +795,8 @@ def criar_agendamento():
         ).fetchone()
         if not servico:
             return jsonify(erro="O serviço selecionado não existe mais."), 404
+        if minutos_inicio + servico[1] > 20 * 60:
+            return jsonify(erro="Esse serviço ultrapassa o horário de funcionamento."), 400
 
         if barbeiro_id.isdecimal():
             barbeiro = db.execute(
