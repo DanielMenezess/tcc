@@ -229,6 +229,7 @@ function mostrarServicos(usuario) {
   mensagemData.textContent = "Selecione hoje ou uma data futura.";
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
+  horarioSelecionadoTexto.className = "mensagem";
   agendamentoConfirmado = false;
   confirmandoAgendamento = false;
   mensagemAgendamento.textContent = "";
@@ -577,6 +578,7 @@ campoDataAgendamento.addEventListener("change", () => {
     horarioSelecionado = null;
     painelEscolherHorario.hidden = true;
     horarioSelecionadoTexto.textContent = "";
+    horarioSelecionadoTexto.className = "mensagem";
     renderizarHorarios();
     mensagemData.textContent = "Escolha hoje ou uma data futura.";
     selecaoAgendamentoAlterada();
@@ -586,6 +588,7 @@ campoDataAgendamento.addEventListener("change", () => {
   dataSelecionada = campoDataAgendamento.value;
   horarioSelecionado = null;
   horarioSelecionadoTexto.textContent = "";
+  horarioSelecionadoTexto.className = "mensagem";
   const [ano, mes, dia] = dataSelecionada.split("-");
   const domingo = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia))).getUTCDay() === 0;
   painelEscolherHorario.hidden = false;
@@ -595,6 +598,7 @@ campoDataAgendamento.addEventListener("change", () => {
     mensagemData.textContent = "A barbearia não abre aos domingos.";
     listaHorarios.replaceChildren();
     horarioSelecionadoTexto.textContent = "Não há horários disponíveis, pois a barbearia não abre aos domingos.";
+    horarioSelecionadoTexto.className = "mensagem";
     selecaoAgendamentoAlterada();
     return;
   }
@@ -980,6 +984,7 @@ listaHorarios.addEventListener("click", (evento) => {
     item.setAttribute("aria-pressed", String(item === botao));
   });
   horarioSelecionadoTexto.textContent = `Horário selecionado: ${horarioSelecionado}`;
+  horarioSelecionadoTexto.className = "mensagem sucesso";
   selecaoAgendamentoAlterada();
 });
 
