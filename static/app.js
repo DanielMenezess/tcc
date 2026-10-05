@@ -46,6 +46,10 @@ const painelAgendamentosPendentes = document.getElementById("painel-agendamentos
 const listaAgendamentosPendentes = document.getElementById("lista-agendamentos-pendentes");
 const totalAgendamentosPendentes = document.getElementById("total-agendamentos-pendentes");
 const mensagemAgendamentosPendentes = document.getElementById("mensagem-agendamentos-pendentes");
+const painelAgendamentosAConcluir = document.getElementById("painel-agendamentos-a-concluir");
+const listaAgendamentosAConcluir = document.getElementById("lista-agendamentos-a-concluir");
+const totalAgendamentosAConcluir = document.getElementById("total-agendamentos-a-concluir");
+const mensagemAgendamentosAConcluir = document.getElementById("mensagem-agendamentos-a-concluir");
 const painelHistoricoServicos = document.getElementById("painel-historico-servicos");
 const tituloHistoricoServicos = document.getElementById("titulo-historico-servicos");
 const listaHistoricoServicos = document.getElementById("lista-historico-servicos");
@@ -72,6 +76,7 @@ const paineisNavegacao = [
   painelAgendarCliente,
   painelAgendamentosCliente,
   painelAgendamentosPendentes,
+  painelAgendamentosAConcluir,
   painelAgendaBarbeiro,
   painelAdicionar,
   painelHistoricoServicos,
@@ -92,6 +97,7 @@ const nomeBarbeiroValido = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$/;
 let perfilSelecionado = "clientes";
 let perfilLoginSelecionado = "clientes";
 let tipoUsuario = null;
+let administradorUsuario = false;
 let servicoSelecionadoId = null;
 let servicoSelecionadoNome = null;
 let barbeiroSelecionadoId = null;
@@ -256,7 +262,9 @@ function paineisDaAba(tipo) {
     return tipo === "agendar" ? [painelAgendarCliente] : [painelAgendamentosCliente];
   }
 
-  if (tipo === "agendamentos") return [painelAgendamentosPendentes, painelAgendaBarbeiro];
+  if (tipo === "agendamentos") {
+    return [painelAgendamentosPendentes, painelAgendamentosAConcluir, painelAgendaBarbeiro];
+  }
   if (tipo === "servicos") return [painelAgendarCliente, painelAdicionar];
   if (tipo === "administracao") {
     return [painelSolicitacoesBarbeiros, painelContasAdministrador, painelHistoricoServicos];
@@ -333,6 +341,7 @@ abasUsuario.addEventListener("keydown", (evento) => {
 
 function mostrarServicos(usuario) {
   tipoUsuario = usuario.tipo;
+  administradorUsuario = usuario.administrador === true;
   const cliente = tipoUsuario === "clientes";
   telaCadastro.hidden = true;
   telaLogin.hidden = true;
@@ -345,6 +354,7 @@ function mostrarServicos(usuario) {
   painelAgendamentosCliente.hidden = true;
   painelProximoAgendamento.hidden = tipoUsuario !== "clientes";
   painelAgendamentosPendentes.hidden = tipoUsuario !== "barbeiros";
+  painelAgendamentosAConcluir.hidden = tipoUsuario !== "barbeiros";
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
   painelContasAdministrador.hidden = !usuario.administrador;
@@ -385,6 +395,7 @@ function mostrarServicos(usuario) {
     carregarBarbeiros();
   } else {
     carregarAgendamentosPendentes();
+    carregarAgendamentosAConcluir();
     campoDataAgendaBarbeiro.value = dataLocalAtual();
     carregarAgendamentosBarbeiro(true);
     tituloHistoricoServicos.textContent = usuario.administrador
@@ -520,7 +531,7 @@ async function carregarAgendamentosPendentes() {
       }
       const nomeCliente = [partesNome[0], ...partesNome.slice(inicioSobrenome)].join(" ");
       titulo.className = "agendamento-pendente-titulo";
-      titulo.textContent = `${agendamento.servico} · ${nomeCliente}`;
+      titulo.textContent = `${agendamento.servico} · ${nomeCliente}${corpo.administrador ? ` · ${agendamento.barbeiro}` : ""}`;
       const detalhe = document.createElement("span");
       detalhe.className = "servico-detalhe agendamento-pendente-detalhes";
       [
@@ -584,12 +595,110 @@ painelAgendamentosPendentes.addEventListener("click", async (evento) => {
     if (botao.dataset.status === "confirmado") {
       mensagemAgendamentosPendentes.classList.add("sucesso");
     }
-    await Promise.all([carregarAgendamentosPendentes(), carregarAgendamentosBarbeiro()]);
+    await Promise.all([
+      carregarAgendamentosPendentes(),
+      carregarAgendamentosAConcluir(),
+      carregarAgendamentosBarbeiro(),
+    ]);
   } catch (erro) {
     mensagemAgendamentosPendentes.textContent = erro.message;
     item.querySelectorAll("button").forEach((acao) => {
       acao.disabled = false;
     });
+  }
+});
+
+async function carregarAgendamentosAConcluir() {
+  listaAgendamentosAConcluir.replaceChildren();
+  const carregando = document.createElement("li");
+  carregando.className = "estado-lista";
+  carregando.textContent = "Carregando serviços aguardando conclusão...";
+  listaAgendamentosAConcluir.append(carregando);
+  totalAgendamentosAConcluir.textContent = "";
+
+  try {
+    const resposta = await fetch("/api/agendamentos-a-concluir");
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar serviços aguardando conclusão.");
+    listaAgendamentosAConcluir.replaceChildren();
+    totalAgendamentosAConcluir.textContent = `${corpo.agendamentos.length} ${corpo.agendamentos.length === 1 ? "serviço" : "serviços"}`;
+
+    if (corpo.agendamentos.length === 0) {
+      const vazio = document.createElement("li");
+      vazio.className = "estado-lista";
+      vazio.textContent = "Nenhum serviço aguardando conclusão.";
+      listaAgendamentosAConcluir.append(vazio);
+      return;
+    }
+
+    corpo.agendamentos.forEach((agendamento) => {
+      const item = document.createElement("li");
+      item.className = "servico";
+      const informacoes = document.createElement("div");
+      informacoes.className = "servico-info";
+      const titulo = document.createElement("strong");
+      titulo.textContent = `${agendamento.servico} · ${agendamento.cliente || "Cliente não encontrado"}`;
+      const detalhe = document.createElement("span");
+      detalhe.className = "servico-detalhe agendamento-pendente-detalhes";
+      detalhe.textContent = `${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario} · ${agendamento.duracao} min · R$ ${formatarPreco.format(agendamento.preco)}`;
+      informacoes.append(titulo, detalhe);
+
+      item.append(informacoes);
+      if (corpo.administrador) {
+        const aguardandoBarbeiro = document.createElement("span");
+        aguardandoBarbeiro.className = "status-agendamento status-pendente";
+        aguardandoBarbeiro.textContent = "Aguardando barbeiro concluir";
+        item.append(aguardandoBarbeiro);
+      } else {
+        const botaoConcluir = document.createElement("button");
+        botaoConcluir.type = "button";
+        botaoConcluir.className = "botao-aprovar botao-concluir-servico";
+        botaoConcluir.dataset.id = agendamento.id;
+        const fim = new Date(`${agendamento.data}T${agendamento.horario}`);
+        fim.setMinutes(fim.getMinutes() + agendamento.duracao);
+        botaoConcluir.disabled = fim > new Date();
+        botaoConcluir.textContent = botaoConcluir.disabled ? "Aguardando horário" : "Confirmar conclusão";
+        botaoConcluir.setAttribute(
+          "aria-label",
+          `${botaoConcluir.textContent}: ${agendamento.servico} com ${agendamento.cliente || "cliente"}`,
+        );
+        item.append(botaoConcluir);
+      }
+      listaAgendamentosAConcluir.append(item);
+    });
+  } catch {
+    totalAgendamentosAConcluir.textContent = "";
+    const erro = document.createElement("li");
+    erro.className = "estado-lista";
+    erro.textContent = "Não foi possível carregar os serviços aguardando conclusão.";
+    listaAgendamentosAConcluir.replaceChildren(erro);
+  }
+}
+
+painelAgendamentosAConcluir.addEventListener("click", async (evento) => {
+  const botao = evento.target.closest(".botao-concluir-servico");
+  if (!botao || botao.disabled) return;
+  if (!window.confirm("Confirma que este serviço foi realizado e concluído?")) return;
+
+  botao.disabled = true;
+  mensagemAgendamentosAConcluir.textContent = "";
+  mensagemAgendamentosAConcluir.className = "mensagem";
+  try {
+    const resposta = await fetch(`/api/agendamentos/${botao.dataset.id}/concluir`, {
+      method: "POST",
+    });
+    const corpo = await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível concluir o serviço.");
+    mensagemAgendamentosAConcluir.textContent = "Serviço concluído e enviado ao histórico.";
+    mensagemAgendamentosAConcluir.classList.add("sucesso");
+    await Promise.all([
+      carregarAgendamentosAConcluir(),
+      carregarAgendamentosBarbeiro(),
+      carregarHistoricoServicos(),
+    ]);
+  } catch (erro) {
+    mensagemAgendamentosAConcluir.textContent = erro.message;
+    botao.disabled = false;
   }
 });
 

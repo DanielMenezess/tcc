@@ -4,8 +4,9 @@ import sqlite3
 import math
 import os
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import Flask, jsonify, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -24,6 +25,17 @@ ADMIN_EMAIL = "danielgabriel@gmail.com"
 ADMIN_TELEFONE = "11111111111"
 ADMIN_SENHA = "123456"
 ADMIN_SENHA_HASH = generate_password_hash(ADMIN_SENHA)
+FUSO_HORARIO = ZoneInfo("America/Sao_Paulo")
+
+
+def agora_local():
+    return datetime.now(FUSO_HORARIO)
+
+
+def horario_local(data_texto, horario_texto):
+    data_agendamento = date.fromisoformat(data_texto)
+    hora_agendamento = time.fromisoformat(horario_texto)
+    return datetime.combine(data_agendamento, hora_agendamento, tzinfo=FUSO_HORARIO)
 
 
 def init_db():
@@ -71,6 +83,29 @@ def init_db():
             db.execute(
                 "ALTER TABLE agendamento ADD COLUMN status TEXT NOT NULL DEFAULT 'confirmado'"
             )
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS app_migracao (nome TEXT PRIMARY KEY)"
+        )
+        migracao_historico = "historico_agendamentos_concluidos_v1"
+        if not db.execute(
+            "SELECT 1 FROM app_migracao WHERE nome = ?", (migracao_historico,)
+        ).fetchone():
+            agora = agora_local()
+            agendamentos_antigos = db.execute(
+                "SELECT id, data_agendamento, horario, duracao FROM agendamento "
+                "WHERE status = 'confirmado'"
+            ).fetchall()
+            for agendamento_id, data_agendamento, horario, duracao in agendamentos_antigos:
+                try:
+                    fim = horario_local(data_agendamento, horario) + timedelta(minutes=duracao)
+                except (TypeError, ValueError):
+                    continue
+                if fim <= agora:
+                    db.execute(
+                        "UPDATE agendamento SET status = 'concluido' WHERE id = ?",
+                        (agendamento_id,),
+                    )
+            db.execute("INSERT INTO app_migracao (nome) VALUES (?)", (migracao_historico,))
         db.execute(
             """CREATE TABLE IF NOT EXISTS solicitacao_barbeiro (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -452,17 +487,21 @@ def listar_agendamentos_pendentes():
     if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem consultar agendamentos pendentes."), 403
 
+    administrador = exigir_administrador()
+    filtro_barbeiro = "" if administrador else "AND a.barbeiro_id = ? "
+    parametros = () if administrador else (str(session["usuario_id"]),)
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         agendamentos = [dict(row) for row in db.execute(
             "SELECT a.id, a.data_agendamento AS data, a.horario, "
-            "a.servico_nome AS servico, a.duracao, a.preco, c.nome AS cliente "
+            "a.servico_nome AS servico, a.duracao, a.preco, c.nome AS cliente, "
+            "a.barbeiro_nome AS barbeiro "
             "FROM agendamento AS a LEFT JOIN cliente AS c ON c.id = a.cliente_id "
-            "WHERE a.barbeiro_id = ? AND a.status = 'pendente' "
+            f"WHERE a.status = 'pendente' {filtro_barbeiro}"
             "ORDER BY a.data_agendamento, a.horario, a.id",
-            (str(session["usuario_id"]),),
+            parametros,
         )]
-    return jsonify(agendamentos=agendamentos)
+    return jsonify(agendamentos=agendamentos, administrador=administrador)
 
 
 @app.post("/api/agendamentos/<int:agendamento_id>/decisao")
@@ -474,11 +513,17 @@ def decidir_agendamento(agendamento_id):
     if status not in ("confirmado", "cancelado"):
         return jsonify(erro="Escolha aceitar ou recusar o agendamento."), 400
 
+    administrador = exigir_administrador()
+    filtro_barbeiro = "" if administrador else " AND barbeiro_id = ?"
+    parametros = (agendamento_id,) if administrador else (
+        agendamento_id,
+        str(session["usuario_id"]),
+    )
     with sqlite3.connect(DB_PATH) as db:
         db.execute("BEGIN IMMEDIATE")
         agendamento = db.execute(
-            "SELECT status FROM agendamento WHERE id = ? AND barbeiro_id = ?",
-            (agendamento_id, str(session["usuario_id"])),
+            f"SELECT status FROM agendamento WHERE id = ?{filtro_barbeiro}",
+            parametros,
         ).fetchone()
         if not agendamento:
             return jsonify(erro="Agendamento não encontrado."), 404
@@ -492,6 +537,62 @@ def decidir_agendamento(agendamento_id):
     return jsonify(ok=True, status=status)
 
 
+@app.get("/api/agendamentos-a-concluir")
+def listar_agendamentos_a_concluir():
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
+        return jsonify(erro="Apenas barbeiros podem consultar serviços aguardando conclusão."), 403
+
+    administrador = exigir_administrador()
+    filtro_barbeiro = "" if administrador else "AND a.barbeiro_id = ? "
+    parametros = () if administrador else (str(session["usuario_id"]),)
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        agendamentos = [dict(row) for row in db.execute(
+            "SELECT a.id, a.data_agendamento AS data, a.horario, "
+            "a.servico_nome AS servico, a.duracao, a.preco, c.nome AS cliente, "
+            "a.barbeiro_nome AS barbeiro "
+            "FROM agendamento AS a LEFT JOIN cliente AS c ON c.id = a.cliente_id "
+            f"WHERE a.status = 'confirmado' {filtro_barbeiro}"
+            "ORDER BY a.data_agendamento, a.horario, a.id",
+            parametros,
+        )]
+    return jsonify(agendamentos=agendamentos, administrador=administrador)
+
+
+@app.post("/api/agendamentos/<int:agendamento_id>/concluir")
+def concluir_agendamento(agendamento_id):
+    if session.get("tipo") != "barbeiros" or not conta_ativa():
+        return jsonify(erro="Apenas barbeiros podem concluir serviços."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("BEGIN IMMEDIATE")
+        agendamento = db.execute(
+            "SELECT status, data_agendamento, horario, duracao FROM agendamento "
+            "WHERE id = ? AND barbeiro_id = ?",
+            (agendamento_id, str(session["usuario_id"])),
+        ).fetchone()
+        if not agendamento:
+            return jsonify(erro="Agendamento não encontrado."), 404
+        if agendamento[0] != "confirmado":
+            return jsonify(erro="Somente agendamentos confirmados podem ser concluídos."), 409
+
+        try:
+            fim = horario_local(agendamento[1], agendamento[2]) + timedelta(
+                minutes=agendamento[3]
+            )
+        except (TypeError, ValueError):
+            return jsonify(erro="Não foi possível validar o horário do agendamento."), 400
+        if fim > agora_local():
+            return jsonify(erro="O serviço só pode ser concluído após o horário agendado."), 409
+
+        db.execute(
+            "UPDATE agendamento SET status = 'concluido' WHERE id = ?",
+            (agendamento_id,),
+        )
+
+    return jsonify(ok=True, status="concluido")
+
+
 @app.get("/api/agendamentos")
 def listar_agendamentos_barbeiro():
     if session.get("tipo") != "barbeiros" or not conta_ativa():
@@ -499,15 +600,16 @@ def listar_agendamentos_barbeiro():
 
     ids_barbeiro = [str(session["usuario_id"])]
     marcadores = ", ".join("?" for _ in ids_barbeiro)
+    hoje = agora_local().date().isoformat()
     if request.args.get("proximo") == "1":
         with sqlite3.connect(DB_PATH) as db:
             proxima_data = db.execute(
                 f"SELECT MIN(data_agendamento) FROM agendamento "
                 f"WHERE data_agendamento >= ? AND barbeiro_id IN ({marcadores}) "
                 "AND status = 'confirmado'",
-                (date.today().isoformat(), *ids_barbeiro),
+                (hoje, *ids_barbeiro),
             ).fetchone()[0]
-        data_texto = proxima_data or date.today().isoformat()
+        data_texto = proxima_data or hoje
     else:
         data_texto = request.args.get("data", "")
         try:
@@ -536,7 +638,7 @@ def listar_proximos_agendamentos_cliente():
     if session.get("tipo") != "clientes" or not conta_ativa():
         return jsonify(erro="Apenas clientes podem consultar seus agendamentos."), 403
 
-    agora = datetime.now()
+    agora = agora_local()
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         agendamentos = db.execute(
@@ -549,7 +651,7 @@ def listar_proximos_agendamentos_cliente():
 
     proximos_agendamentos = []
     for agendamento in agendamentos:
-        inicio = datetime.fromisoformat(f"{agendamento['data']}T{agendamento['horario']}")
+        inicio = horario_local(agendamento["data"], agendamento["horario"])
         fim = inicio + timedelta(minutes=agendamento["duracao"])
         if fim > agora:
             proximos_agendamentos.append(dict(agendamento))
@@ -582,18 +684,15 @@ def listar_historico_servicos():
     if session.get("tipo") != "barbeiros" or not conta_ativa():
         return jsonify(erro="Apenas barbeiros podem consultar o histórico de serviços."), 403
 
-    agora = datetime.now()
-    hoje = agora.date().isoformat()
-    minuto_atual = agora.hour * 60 + agora.minute
     administrador = exigir_administrador()
     consulta = (
         "SELECT a.id, a.data_agendamento AS data, a.horario, "
         "a.servico_nome AS servico, a.duracao, a.preco, "
         "a.barbeiro_nome AS barbeiro, c.nome AS cliente "
         "FROM agendamento AS a LEFT JOIN cliente AS c ON c.id = a.cliente_id "
-        "WHERE a.data_agendamento <= ? AND a.status = 'confirmado' "
+        "WHERE a.status = 'concluido' "
     )
-    parametros = [hoje]
+    parametros = []
     if not administrador:
         consulta += "AND a.barbeiro_id = ? "
         parametros.append(str(session["usuario_id"]))
@@ -602,21 +701,7 @@ def listar_historico_servicos():
     with sqlite3.connect(DB_PATH) as db:
         db.row_factory = sqlite3.Row
         agendamentos = [dict(row) for row in db.execute(consulta, parametros)]
-
-    historico = []
-    for agendamento in agendamentos:
-        if agendamento["data"] < hoje:
-            historico.append(agendamento)
-            continue
-        try:
-            hora, minuto = (int(parte) for parte in agendamento["horario"].split(":"))
-            minuto_fim = hora * 60 + minuto + int(agendamento["duracao"])
-        except (TypeError, ValueError):
-            continue
-        if minuto_fim <= minuto_atual:
-            historico.append(agendamento)
-
-    return jsonify(historico=historico, administrador=administrador)
+    return jsonify(historico=agendamentos, administrador=administrador)
 
 
 @app.post("/api/agendamentos")
@@ -637,7 +722,8 @@ def criar_agendamento():
         data_agendamento = date.fromisoformat(data_texto)
     except ValueError:
         return jsonify(erro="Escolha uma data válida."), 400
-    if data_agendamento.isoformat() != data_texto or data_agendamento < date.today():
+    hoje = agora_local().date()
+    if data_agendamento.isoformat() != data_texto or data_agendamento < hoje:
         return jsonify(erro="A data do agendamento não pode ser anterior a hoje."), 400
 
     if not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", horario):
@@ -650,7 +736,7 @@ def criar_agendamento():
         or horario in ("12:00", "12:30")
     ):
         return jsonify(erro="Esse horário não está disponível."), 400
-    agora = datetime.now()
+    agora = agora_local()
     if data_agendamento == agora.date() and minutos_inicio <= agora.hour * 60 + agora.minute:
         return jsonify(erro="Esse horário já passou. Escolha outro horário."), 400
 

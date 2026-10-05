@@ -32,11 +32,35 @@ def testar_migracao_mantem_agendamentos_antigos_confirmados(tmp_path, monkeypatc
             "data_agendamento, horario, duracao, preco) "
             "VALUES (1, 1, 'Corte', '1', 'Daniel Gabriel', '2026-10-06', '09:00', 30, 35)"
         )
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco) "
+            "VALUES (2, 2, 'Barba', '1', 'Daniel Gabriel', ?, '09:00', 20, 25)",
+            ((date.today() - timedelta(days=1)).isoformat(),),
+        )
 
     app_module.init_db()
 
     with app_module.sqlite3.connect(caminho_db) as db:
         assert db.execute("SELECT status FROM agendamento WHERE id = 1").fetchone() == (
+            "confirmado",
+        )
+        assert db.execute("SELECT status FROM agendamento WHERE id = 2").fetchone() == (
+            "concluido",
+        )
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco, status) "
+            "VALUES (3, 3, 'Corte + Barba', '1', 'Daniel Gabriel', ?, '09:00', 50, 55, 'confirmado')",
+            ((date.today() - timedelta(days=1)).isoformat(),),
+        )
+
+    app_module.init_db()
+
+    with app_module.sqlite3.connect(caminho_db) as db:
+        assert db.execute("SELECT status FROM agendamento WHERE id = 3").fetchone() == (
             "confirmado",
         )
 
@@ -435,6 +459,10 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     assert [
         item["id"] for item in barbeiro.get("/api/agendamentos-pendentes").json["agendamentos"]
     ] == [2]
+    aguardando_conclusao = barbeiro.get("/api/agendamentos-a-concluir")
+    assert aguardando_conclusao.status_code == 200
+    assert [item["id"] for item in aguardando_conclusao.json["agendamentos"]] == [1]
+    assert barbeiro.post("/api/agendamentos/1/concluir").status_code == 409
     agendamentos = cliente.get("/api/meu-agendamento").json["agendamentos"]
     assert [item["status"] for item in agendamentos] == ["confirmado", "pendente"]
     assert cliente.delete("/api/meu-agendamento/1").status_code == 409
@@ -443,6 +471,127 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     ).status_code == 409
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
         assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 2
+
+
+def testar_agendamento_do_mesmo_dia_usa_fuso_de_brasilia(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    agora = app_module.datetime(2026, 10, 5, 16, 57, tzinfo=app_module.FUSO_HORARIO)
+    monkeypatch.setattr(app_module, "agora_local", lambda: agora)
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    assert cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        barbeiro_id = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+
+    dados = {
+        "servico_id": 1,
+        "barbeiro_id": str(barbeiro_id),
+        "data": "2026-10-05",
+        "horario": "16:30",
+    }
+    horario_passado = cliente.post("/api/agendamentos", json=dados)
+    assert horario_passado.status_code == 400
+    assert "já passou" in horario_passado.json["erro"]
+
+    dados["horario"] = "17:00"
+    assert cliente.post("/api/agendamentos", json=dados).status_code == 201
+
+
+def testar_conclusao_do_servico_move_agendamento_para_historico(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    solicitante = app_module.app.test_client()
+    barbeiro = app_module.app.test_client()
+    administrador = app_module.app.test_client()
+
+    assert cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+    assert solicitante.post(
+        "/api/barbeiros",
+        json={
+            "nome": "João da Silva",
+            "email": "joao@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 202
+    assert entrar_administrador(administrador).status_code == 200
+    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
+    assert administrador.post(
+        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
+    ).status_code == 200
+    assert barbeiro.post(
+        "/api/login",
+        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    ).status_code == 200
+
+    ontem = (date.today() - timedelta(days=1)).isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        id_cliente = db.execute(
+            "SELECT id FROM cliente WHERE email = ?", ("maria@teste.com",)
+        ).fetchone()[0]
+        id_barbeiro = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", ("joao@teste.com",)
+        ).fetchone()[0]
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco, status) "
+            "VALUES (?, 1, 'Corte', ?, 'João da Silva', ?, '09:00', 30, 35, 'pendente')",
+            (id_cliente, str(id_barbeiro), ontem),
+        )
+
+    assert barbeiro.post("/api/agendamentos/1/concluir").status_code == 409
+    fila_admin = administrador.get("/api/agendamentos-pendentes")
+    assert fila_admin.status_code == 200
+    assert fila_admin.json["administrador"] is True
+    assert [item["id"] for item in fila_admin.json["agendamentos"]] == [1]
+    assert fila_admin.json["agendamentos"][0]["barbeiro"] == "João da Silva"
+    assert administrador.post(
+        "/api/agendamentos/1/decisao", json={"status": "confirmado"}
+    ).status_code == 200
+    assert barbeiro.get("/api/agendamentos-a-concluir").json["agendamentos"][0]["id"] == 1
+    assert [item["id"] for item in barbeiro.get(
+        "/api/agendamentos-a-concluir"
+    ).json["agendamentos"]] == [1]
+    fila_admin_conclusao = administrador.get("/api/agendamentos-a-concluir")
+    assert fila_admin_conclusao.json["administrador"] is True
+    assert fila_admin_conclusao.json["agendamentos"][0]["barbeiro"] == "João da Silva"
+    assert barbeiro.get("/api/historico-servicos").json["historico"] == []
+    assert administrador.get("/api/historico-servicos").json["historico"] == []
+
+    conclusao = barbeiro.post("/api/agendamentos/1/concluir")
+    assert conclusao.status_code == 200
+    assert conclusao.json["status"] == "concluido"
+    assert barbeiro.get("/api/agendamentos-a-concluir").json["agendamentos"] == []
+    assert barbeiro.get("/api/historico-servicos").json["historico"][0]["servico"] == "Corte"
+    historico_admin = administrador.get("/api/historico-servicos").json["historico"]
+    assert [(item["barbeiro"], item["servico"]) for item in historico_admin] == [
+        ("João da Silva", "Corte")
+    ]
+    assert barbeiro.post("/api/agendamentos/1/concluir").status_code == 409
 
 
 def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
@@ -687,12 +836,13 @@ def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_par
         db.executemany(
             "INSERT INTO agendamento "
             "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
-            "data_agendamento, horario, duracao, preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "data_agendamento, horario, duracao, preco, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (id_cliente, 1, "Corte", str(id_barbeiro), "João da Silva", ontem, "09:00", 30, 35),
-                (id_cliente, 2, "Barba", str(id_barbeiro), "João da Silva", amanha, "10:00", 20, 25),
-                (id_cliente, 3, "Corte + Barba", str(id_outro_barbeiro), "Carlos Souza", ontem, "11:00", 50, 55),
-                (id_cliente, 4, "Sobrancelha", str(id_admin), "Daniel Gabriel", ontem, "12:00", 10, 15),
+                (id_cliente, 1, "Corte", str(id_barbeiro), "João da Silva", ontem, "09:00", 30, 35, "concluido"),
+                (id_cliente, 2, "Barba", str(id_barbeiro), "João da Silva", amanha, "10:00", 20, 25, "confirmado"),
+                (id_cliente, 3, "Corte + Barba", str(id_outro_barbeiro), "Carlos Souza", ontem, "11:00", 50, 55, "concluido"),
+                (id_cliente, 4, "Sobrancelha", str(id_admin), "Daniel Gabriel", ontem, "12:00", 10, 15, "concluido"),
             ],
         )
 

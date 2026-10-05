@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
   <title>Fade House | Agendamentos</title>
-  <link rel="stylesheet" href="style.css?v=sidebar-fixed-4">
+  <link rel="stylesheet" href="style.css?v=service-completion-1">
 </head>
 <body>
   <header class="cabecalho">
@@ -164,6 +164,16 @@
           <li class="estado-lista">Carregando agendamentos pendentes...</li>
         </ul>
       </section>
+      <section id="painel-agendamentos-a-concluir" class="painel" aria-labelledby="titulo-agendamentos-a-concluir" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agendamentos-a-concluir">Serviços aguardando conclusão</h2>
+          <span id="total-agendamentos-a-concluir" class="contador" aria-live="polite"></span>
+        </div>
+        <p id="mensagem-agendamentos-a-concluir" class="mensagem" aria-live="polite"></p>
+        <ul id="lista-agendamentos-a-concluir" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Carregando serviços aguardando conclusão...</li>
+        </ul>
+      </section>
       <section id="painel-agenda-barbeiro" class="painel painel-formulario" aria-labelledby="titulo-agenda-barbeiro" hidden>
         <div class="cabecalho-painel">
           <h2 id="titulo-agenda-barbeiro">Agenda do dia</h2>
@@ -268,6 +278,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=sidebar-fixed-3"></script>
+  <script src="app.js?v=service-completion-1"></script>
 </body>
 </html>
