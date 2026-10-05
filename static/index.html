@@ -83,17 +83,13 @@
     </section>
 
     <section id="tela-servicos" class="visao" aria-labelledby="titulo-servicos" hidden>
-      <aside id="navegacao-cliente" class="navegacao-cliente" aria-label="Navegação do cliente" hidden>
+      <aside id="navegacao-usuario" class="navegacao-cliente" aria-label="Navegação da conta" hidden>
         <div class="perfil-cliente">
-          <h2 id="boas-vindas-cliente">Olá</h2>
-          <button id="botao-sair-cliente" class="botao-sair" type="button">Sair da conta</button>
+          <h2 id="boas-vindas-usuario">Olá</h2>
         </div>
-        <nav class="abas-cliente" role="tablist" aria-label="Área do cliente">
-          <button id="aba-agendar-cliente" class="aba-cliente selecionada" type="button" role="tab" aria-selected="true" aria-controls="painel-agendar-cliente" data-aba-cliente="agendar">Agende aqui</button>
-          <button id="aba-agendamentos-cliente" class="aba-cliente" type="button" role="tab" aria-selected="false" aria-controls="painel-agendamentos-cliente" data-aba-cliente="agendamentos" tabindex="-1">Agendamentos</button>
-        </nav>
+        <nav id="abas-usuario" class="abas-cliente" role="tablist" aria-label="Menu da conta"></nav>
         <div class="rodape-cliente">
-          <button id="botao-tema-cliente" class="botao-tema-cliente" type="button" aria-pressed="false">Ativar tema escuro</button>
+          <button id="botao-sair-cliente" class="botao-sair" type="button">Sair da conta</button>
         </div>
       </aside>
       <div class="area-conteudo">
@@ -104,7 +100,7 @@
         </div>
         <button id="botao-sair-barbeiro" class="botao-sair" type="button">Sair da conta</button>
       </div>
-      <section id="painel-agendamentos-cliente" class="painel-cliente-aba" role="tabpanel" aria-labelledby="aba-agendamentos-cliente" hidden>
+      <section id="painel-agendamentos-cliente" class="painel-cliente-aba" hidden>
         <section id="painel-proximo-agendamento" class="painel destaque-agendamento" aria-labelledby="titulo-proximo-agendamento" hidden>
           <div class="cabecalho-painel">
             <h2 id="titulo-proximo-agendamento">Seus próximos agendamentos</h2>
@@ -192,7 +188,7 @@
           <li class="estado-lista">Carregando histórico...</li>
         </ul>
       </section>
-      <section id="painel-agendar-cliente" class="painel-cliente-aba" role="tabpanel" aria-labelledby="aba-agendar-cliente">
+      <section id="painel-agendar-cliente" class="painel-cliente-aba" hidden>
       <section class="painel painel-servicos-disponiveis" aria-labelledby="titulo-servicos">
         <div class="cabecalho-painel">
           <h2 id="titulo-servicos">Serviços disponíveis</h2>

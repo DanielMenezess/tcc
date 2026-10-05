@@ -13,15 +13,16 @@ const botaoCadastro = document.getElementById("botao-cadastro");
 const botaoLogin = document.getElementById("botao-login");
 const botoesSair = Array.from(document.querySelectorAll(".botao-sair"));
 const botaoTema = document.getElementById("botao-tema");
-const botoesTema = [botaoTema, document.getElementById("botao-tema-cliente")];
+const botoesTema = [botaoTema];
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
-const navegacaoCliente = document.getElementById("navegacao-cliente");
+const cabecalhoSite = document.querySelector(".cabecalho");
+const navegacaoUsuario = document.getElementById("navegacao-usuario");
 const cabecalhoBarbeiro = document.getElementById("cabecalho-barbeiro");
 const painelAgendarCliente = document.getElementById("painel-agendar-cliente");
 const painelAgendamentosCliente = document.getElementById("painel-agendamentos-cliente");
-const abasCliente = Array.from(document.querySelectorAll("[data-aba-cliente]"));
+const abasUsuario = document.getElementById("abas-usuario");
 const painelProximoAgendamento = document.getElementById("painel-proximo-agendamento");
 const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
 const listaProximosAgendamentos = document.getElementById("lista-proximos-agendamentos");
@@ -67,6 +68,16 @@ const painelConfirmarAgendamento = document.getElementById("painel-confirmar-age
 const resumoAgendamento = document.getElementById("resumo-agendamento");
 const mensagemAgendamento = document.getElementById("mensagem-agendamento");
 const botaoConfirmarAgendamento = document.getElementById("botao-confirmar-agendamento");
+const paineisNavegacao = [
+  painelAgendarCliente,
+  painelAgendamentosCliente,
+  painelAgendamentosPendentes,
+  painelAgendaBarbeiro,
+  painelAdicionar,
+  painelHistoricoServicos,
+  painelSolicitacoesBarbeiros,
+  painelContasAdministrador,
+];
 const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
 const seletorPerfilLogin = Array.from(document.querySelectorAll("[data-login-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
@@ -91,6 +102,11 @@ let agendamentoSolicitado = false;
 let confirmandoAgendamento = false;
 let contasClientes = [];
 let contasBarbeiros = [];
+
+new ResizeObserver(() => {
+  const alturaCabecalho = cabecalhoSite.getBoundingClientRect().height;
+  document.documentElement.style.setProperty("--altura-cabecalho", `${alturaCabecalho}px`);
+}).observe(cabecalhoSite);
 
 function atualizarBotaoTema(tema) {
   const temaEscuro = tema === "escuro";
@@ -209,41 +225,103 @@ campoNomeCadastro.addEventListener("input", () => {
   campoNomeCadastro.setSelectionRange(cursorSemNumeros, cursorSemNumeros);
 });
 
+function ocultarAreaServicos() {
+  telaServicos.hidden = true;
+  telaServicos.classList.remove("usuario-ativo");
+  document.body.classList.remove("usuario-logado");
+  navegacaoUsuario.hidden = true;
+}
+
 function mostrarCadastro() {
+  ocultarAreaServicos();
   telaCadastro.hidden = false;
   telaLogin.hidden = true;
-  telaServicos.hidden = true;
 }
 
 function mostrarLogin() {
+  ocultarAreaServicos();
   telaCadastro.hidden = true;
   telaLogin.hidden = false;
-  telaServicos.hidden = true;
 }
 
-function selecionarAbaCliente(tipo) {
-  const agendamentosSelecionados = tipo === "agendamentos";
-  painelAgendarCliente.hidden = agendamentosSelecionados;
-  painelAgendamentosCliente.hidden = !agendamentosSelecionados;
-  abasCliente.forEach((aba) => {
-    const selecionada = aba.dataset.abaCliente === tipo;
+function paineisDaAba(tipo) {
+  if (tipoUsuario === "clientes") {
+    return tipo === "agendar" ? [painelAgendarCliente] : [painelAgendamentosCliente];
+  }
+
+  if (tipo === "agendamentos") return [painelAgendamentosPendentes, painelAgendaBarbeiro];
+  if (tipo === "servicos") return [painelAgendarCliente, painelAdicionar];
+  if (tipo === "administracao") {
+    return [painelSolicitacoesBarbeiros, painelContasAdministrador, painelHistoricoServicos];
+  }
+  return [painelHistoricoServicos];
+}
+
+function selecionarAbaUsuario(tipo) {
+  const opcoes = Array.from(abasUsuario.querySelectorAll("[data-aba-usuario]"));
+  const abaAtiva = opcoes.find((aba) => aba.dataset.abaUsuario === tipo);
+  if (!abaAtiva) return;
+
+  const paineisAtivos = paineisDaAba(tipo);
+  paineisNavegacao.forEach((painel) => {
+    painel.hidden = !paineisAtivos.includes(painel);
+  });
+  paineisAtivos.forEach((painel) => {
+    painel.setAttribute("role", "tabpanel");
+    painel.setAttribute("aria-labelledby", abaAtiva.id);
+  });
+  opcoes.forEach((aba) => {
+    const selecionada = aba === abaAtiva;
     aba.classList.toggle("selecionada", selecionada);
     aba.setAttribute("aria-selected", String(selecionada));
     aba.tabIndex = selecionada ? 0 : -1;
   });
-  if (agendamentosSelecionados) carregarProximosAgendamentos();
+  if (tipoUsuario === "clientes" && tipo === "agendamentos") carregarProximosAgendamentos();
 }
 
-abasCliente.forEach((aba, indice) => {
-  aba.addEventListener("click", () => selecionarAbaCliente(aba.dataset.abaCliente));
-  aba.addEventListener("keydown", (evento) => {
-    const direcoes = { ArrowRight: 1, ArrowLeft: -1, Home: -indice, End: abasCliente.length - indice - 1 };
-    if (!(evento.key in direcoes)) return;
-    evento.preventDefault();
-    const proximaAba = (indice + direcoes[evento.key] + abasCliente.length) % abasCliente.length;
-    abasCliente[proximaAba].focus();
-    selecionarAbaCliente(abasCliente[proximaAba].dataset.abaCliente);
+function renderizarAbasUsuario(usuario) {
+  const cliente = usuario.tipo === "clientes";
+  const administrador = usuario.administrador === true;
+  const itens = cliente
+    ? [["agendar", "Agende aqui"], ["agendamentos", "Agendamentos"]]
+    : [["agendamentos", "Agendamentos"], ["servicos", "Serviços"], ["historico", "Histórico"]];
+  if (administrador) itens.push(["administracao", "Administração"]);
+
+  navegacaoUsuario.setAttribute(
+    "aria-label",
+    cliente ? "Navegação do cliente" : administrador ? "Navegação da administração" : "Navegação do barbeiro",
+  );
+  abasUsuario.replaceChildren();
+  itens.forEach(([tipo, texto]) => {
+    const botao = document.createElement("button");
+    botao.id = `aba-${tipo}-usuario`;
+    botao.type = "button";
+    botao.className = "aba-cliente";
+    botao.dataset.abaUsuario = tipo;
+    botao.setAttribute("role", "tab");
+    botao.setAttribute("aria-selected", "false");
+    botao.setAttribute("aria-controls", paineisDaAba(tipo).map((painel) => painel.id).join(" "));
+    botao.tabIndex = -1;
+    botao.textContent = texto;
+    abasUsuario.append(botao);
   });
+}
+
+abasUsuario.addEventListener("click", (evento) => {
+  const aba = evento.target.closest("[data-aba-usuario]");
+  if (aba) selecionarAbaUsuario(aba.dataset.abaUsuario);
+});
+
+abasUsuario.addEventListener("keydown", (evento) => {
+  const opcoes = Array.from(abasUsuario.querySelectorAll("[data-aba-usuario]"));
+  const indice = opcoes.indexOf(evento.target.closest("[data-aba-usuario]"));
+  if (indice < 0) return;
+  const direcoes = { ArrowRight: 1, ArrowLeft: -1, Home: -indice, End: opcoes.length - indice - 1 };
+  if (!(evento.key in direcoes)) return;
+  evento.preventDefault();
+  const proximaAba = (indice + direcoes[evento.key] + opcoes.length) % opcoes.length;
+  opcoes[proximaAba].focus();
+  selecionarAbaUsuario(opcoes[proximaAba].dataset.abaUsuario);
 });
 
 function mostrarServicos(usuario) {
@@ -252,10 +330,10 @@ function mostrarServicos(usuario) {
   telaCadastro.hidden = true;
   telaLogin.hidden = true;
   telaServicos.hidden = false;
-  telaServicos.classList.toggle("cliente-ativo", cliente);
-  document.body.classList.toggle("cliente-logado", cliente);
-  navegacaoCliente.hidden = !cliente;
-  cabecalhoBarbeiro.hidden = cliente;
+  telaServicos.classList.add("usuario-ativo");
+  document.body.classList.add("usuario-logado");
+  navegacaoUsuario.hidden = false;
+  cabecalhoBarbeiro.hidden = true;
   painelAgendarCliente.hidden = false;
   painelAgendamentosCliente.hidden = true;
   painelProximoAgendamento.hidden = tipoUsuario !== "clientes";
@@ -287,9 +365,10 @@ function mostrarServicos(usuario) {
   botaoConfirmarAgendamento.textContent = "Solicitar agendamento";
   atualizarResumoAgendamento();
   renderizarHorarios();
-  document.getElementById("boas-vindas-cliente").textContent = `Olá, ${usuario.nome}`;
+  document.getElementById("boas-vindas-usuario").textContent = `Olá, ${usuario.nome}`;
   document.getElementById("boas-vindas-barbeiro").textContent = `Olá, ${usuario.nome}`;
-  selecionarAbaCliente("agendar");
+  renderizarAbasUsuario(usuario);
+  selecionarAbaUsuario(cliente ? "agendar" : "agendamentos");
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
     ? "Área do barbeiro"
     : "Área do cliente";
@@ -1289,7 +1368,6 @@ botoesSair.forEach((botaoSair) => botaoSair.addEventListener("click", async () =
     const resposta = await fetch("/api/sair", { method: "POST" });
     if (!resposta.ok) throw new Error("Falha ao encerrar a sessão.");
     tipoUsuario = null;
-    document.body.classList.remove("cliente-logado");
     mensagemCadastro.textContent = "";
     mostrarCadastro();
   } catch {
