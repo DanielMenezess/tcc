@@ -292,6 +292,17 @@ async function carregarProximosAgendamentos(silencioso = false) {
     corpo.agendamentos.forEach((agendamento) => {
       const item = document.createElement("article");
       item.className = "item-proximo-agendamento";
+      if (agendamento.status === "cancelado") {
+        item.classList.add("agendamento-cancelado");
+        const remover = document.createElement("button");
+        remover.type = "button";
+        remover.className = "botao-remover-agendamento";
+        remover.dataset.id = agendamento.id;
+        remover.setAttribute("aria-label", "Remover agendamento cancelado");
+        remover.title = "Remover agendamento cancelado";
+        remover.textContent = "×";
+        item.append(remover);
+      }
       const detalhes = document.createElement("dl");
       detalhes.className = "detalhes-agendamento";
       const dados = [
@@ -326,6 +337,24 @@ async function carregarProximosAgendamentos(silencioso = false) {
     }
   }
 }
+
+listaProximosAgendamentos.addEventListener("click", async (evento) => {
+  const botao = evento.target.closest(".botao-remover-agendamento");
+  if (!botao) return;
+
+  botao.disabled = true;
+  try {
+    const resposta = await fetch(`/api/meu-agendamento/${botao.dataset.id}`, {
+      method: "DELETE",
+    });
+    const corpo = resposta.status === 204 ? {} : await resposta.json();
+    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível remover o agendamento.");
+    await carregarProximosAgendamentos();
+  } catch (erro) {
+    statusProximoAgendamento.textContent = erro.message || "Não foi possível remover o agendamento.";
+    botao.disabled = false;
+  }
+});
 
 async function carregarAgendamentosPendentes() {
   listaAgendamentosPendentes.replaceChildren();

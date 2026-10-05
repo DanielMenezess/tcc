@@ -437,6 +437,7 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     ] == [2]
     agendamentos = cliente.get("/api/meu-agendamento").json["agendamentos"]
     assert [item["status"] for item in agendamentos] == ["confirmado", "pendente"]
+    assert cliente.delete("/api/meu-agendamento/1").status_code == 409
     assert barbeiro.post(
         "/api/agendamentos/1/decisao", json={"status": "cancelado"}
     ).status_code == 409
@@ -479,6 +480,21 @@ def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
         "/api/agendamentos/1/decisao", json={"status": "cancelado"}
     ).status_code == 200
     assert cliente.get("/api/meu-agendamento").json["agendamentos"][0]["status"] == "cancelado"
+
+    outra_cliente = app_module.app.test_client()
+    assert outra_cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Ana da Silva",
+            "email": "ana@teste.com",
+            "telefone": "41988888888",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+    assert outra_cliente.delete("/api/meu-agendamento/1").status_code == 404
+    assert cliente.delete("/api/meu-agendamento/1").status_code == 204
+    assert cliente.get("/api/meu-agendamento").json["agendamentos"] == []
     assert cliente.post("/api/agendamentos", json=dados).status_code == 201
 
 

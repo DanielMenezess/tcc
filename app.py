@@ -557,6 +557,26 @@ def listar_proximos_agendamentos_cliente():
     return jsonify(agendamentos=proximos_agendamentos)
 
 
+@app.delete("/api/meu-agendamento/<int:agendamento_id>")
+def excluir_agendamento_cancelado_cliente(agendamento_id):
+    if session.get("tipo") != "clientes" or not conta_ativa():
+        return jsonify(erro="Apenas clientes podem remover seus agendamentos."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("BEGIN IMMEDIATE")
+        agendamento = db.execute(
+            "SELECT status FROM agendamento WHERE id = ? AND cliente_id = ?",
+            (agendamento_id, session["usuario_id"]),
+        ).fetchone()
+        if not agendamento:
+            return jsonify(erro="Agendamento não encontrado."), 404
+        if agendamento[0] != "cancelado":
+            return jsonify(erro="Somente agendamentos cancelados podem ser removidos."), 409
+        db.execute("DELETE FROM agendamento WHERE id = ?", (agendamento_id,))
+
+    return "", 204
+
+
 @app.get("/api/historico-servicos")
 def listar_historico_servicos():
     if session.get("tipo") != "barbeiros" or not conta_ativa():

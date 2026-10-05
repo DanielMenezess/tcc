@@ -183,10 +183,50 @@ body {
 }
 
 .item-proximo-agendamento {
+  position: relative;
   padding: 14px;
   background: var(--item);
   border: 1px solid var(--item-linha);
   border-radius: 5px;
+}
+
+.item-proximo-agendamento.agendamento-cancelado {
+  padding-top: 46px;
+}
+
+.botao-remover-agendamento {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--erro);
+  border-radius: 4px;
+  color: var(--erro);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.botao-remover-agendamento:hover:not(:disabled) {
+  background: var(--erro);
+  color: #ffffff;
+}
+
+.botao-remover-agendamento:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.botao-remover-agendamento:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 .detalhes-agendamento {
