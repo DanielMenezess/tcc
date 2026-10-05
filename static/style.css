@@ -177,6 +177,18 @@ body {
   color: var(--sucesso);
 }
 
+.lista-proximos-agendamentos {
+  display: grid;
+  gap: 12px;
+}
+
+.item-proximo-agendamento {
+  padding: 14px;
+  background: var(--item);
+  border: 1px solid var(--item-linha);
+  border-radius: 5px;
+}
+
 .detalhes-agendamento {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

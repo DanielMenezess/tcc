@@ -18,8 +18,7 @@ const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
 const painelProximoAgendamento = document.getElementById("painel-proximo-agendamento");
 const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
-const detalhesProximoAgendamento = document.getElementById("detalhes-proximo-agendamento");
-const statusDecisaoAgendamento = document.getElementById("status-decisao-agendamento");
+const listaProximosAgendamentos = document.getElementById("lista-proximos-agendamentos");
 const painelAdicionar = document.getElementById("painel-adicionar");
 const painelSolicitacoesBarbeiros = document.getElementById("painel-solicitacoes-barbeiros");
 const listaSolicitacoesBarbeiros = document.getElementById("lista-solicitacoes-barbeiros");
@@ -256,7 +255,7 @@ function mostrarServicos(usuario) {
     : "Área do cliente";
   carregarServicos();
   if (tipoUsuario === "clientes") {
-    carregarProximoAgendamento();
+    carregarProximosAgendamentos();
     carregarBarbeiros();
   } else {
     carregarAgendamentosPendentes();
@@ -273,53 +272,57 @@ function mostrarServicos(usuario) {
   }
 }
 
-async function carregarProximoAgendamento(silencioso = false) {
+async function carregarProximosAgendamentos(silencioso = false) {
   if (!silencioso) {
-    statusProximoAgendamento.textContent = "Carregando agendamento...";
-    detalhesProximoAgendamento.replaceChildren();
-    statusDecisaoAgendamento.hidden = true;
+    statusProximoAgendamento.textContent = "Carregando agendamentos...";
+    listaProximosAgendamentos.replaceChildren();
   }
 
   try {
     const resposta = await fetch("/api/meu-agendamento");
     const corpo = await resposta.json();
     if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar agendamento.");
-    if (!corpo.agendamento) {
+    listaProximosAgendamentos.replaceChildren();
+    if (corpo.agendamentos.length === 0) {
       statusProximoAgendamento.textContent = "Você não tem agendamentos futuros.";
-      detalhesProximoAgendamento.replaceChildren();
-      statusDecisaoAgendamento.hidden = true;
       return;
     }
 
     statusProximoAgendamento.textContent = "";
-    const agendamento = corpo.agendamento;
-    detalhesProximoAgendamento.replaceChildren();
-    const dados = [
-      ["Horário", agendamento.horario],
-      ["Data", agendamento.data.split("-").reverse().join("/")],
-      ["Barbeiro", agendamento.barbeiro],
-      ["Serviço", agendamento.servico],
-      ["Duração", `${agendamento.duracao} min`],
-      ["Valor", `R$ ${formatarPrecoComCentavos.format(agendamento.preco)}`],
-    ];
+    corpo.agendamentos.forEach((agendamento) => {
+      const item = document.createElement("article");
+      item.className = "item-proximo-agendamento";
+      const detalhes = document.createElement("dl");
+      detalhes.className = "detalhes-agendamento";
+      const dados = [
+        ["Horário", agendamento.horario],
+        ["Data", agendamento.data.split("-").reverse().join("/")],
+        ["Barbeiro", agendamento.barbeiro],
+        ["Serviço", agendamento.servico],
+        ["Duração", `${agendamento.duracao} min`],
+        ["Valor", `R$ ${formatarPrecoComCentavos.format(agendamento.preco)}`],
+      ];
 
-    dados.forEach(([rotulo, valor]) => {
-      const item = document.createElement("div");
-      item.className = "dado-agendamento";
-      const titulo = document.createElement("dt");
-      titulo.textContent = rotulo;
-      const detalhe = document.createElement("dd");
-      detalhe.textContent = valor;
-      item.append(titulo, detalhe);
-      detalhesProximoAgendamento.append(item);
+      dados.forEach(([rotulo, valor]) => {
+        const campo = document.createElement("div");
+        campo.className = "dado-agendamento";
+        const titulo = document.createElement("dt");
+        titulo.textContent = rotulo;
+        const detalhe = document.createElement("dd");
+        detalhe.textContent = valor;
+        campo.append(titulo, detalhe);
+        detalhes.append(campo);
+      });
+
+      const status = document.createElement("p");
+      status.className = `status-agendamento status-${agendamento.status}`;
+      status.textContent = `Status: ${agendamento.status}`;
+      item.append(detalhes, status);
+      listaProximosAgendamentos.append(item);
     });
-    statusDecisaoAgendamento.className = `status-agendamento status-${agendamento.status}`;
-    statusDecisaoAgendamento.textContent = `Status: ${agendamento.status}`;
-    statusDecisaoAgendamento.hidden = false;
   } catch {
     if (!silencioso) {
-      statusProximoAgendamento.textContent = "Não foi possível carregar seu próximo agendamento.";
-      statusDecisaoAgendamento.hidden = true;
+      statusProximoAgendamento.textContent = "Não foi possível carregar seus próximos agendamentos.";
     }
   }
 }
@@ -1086,7 +1089,7 @@ formLogin.addEventListener("submit", async (evento) => {
 });
 
 window.setInterval(() => {
-  if (tipoUsuario === "clientes") carregarProximoAgendamento(true);
+  if (tipoUsuario === "clientes") carregarProximosAgendamentos(true);
 }, 10000);
 
 lista.addEventListener("click", async (evento) => {

@@ -532,7 +532,7 @@ def listar_agendamentos_barbeiro():
 
 
 @app.get("/api/meu-agendamento")
-def listar_proximo_agendamento_cliente():
+def listar_proximos_agendamentos_cliente():
     if session.get("tipo") != "clientes" or not conta_ativa():
         return jsonify(erro="Apenas clientes podem consultar seus agendamentos."), 403
 
@@ -547,13 +547,14 @@ def listar_proximo_agendamento_cliente():
             (session["usuario_id"], agora.date().isoformat()),
         ).fetchall()
 
+    proximos_agendamentos = []
     for agendamento in agendamentos:
         inicio = datetime.fromisoformat(f"{agendamento['data']}T{agendamento['horario']}")
         fim = inicio + timedelta(minutes=agendamento["duracao"])
         if fim > agora:
-            return jsonify(agendamento=dict(agendamento))
+            proximos_agendamentos.append(dict(agendamento))
 
-    return jsonify(agendamento=None)
+    return jsonify(agendamentos=proximos_agendamentos)
 
 
 @app.get("/api/historico-servicos")

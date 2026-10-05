@@ -369,12 +369,13 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
             "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
         ).fetchone()[0]
 
+    data_primeiro = (date.today() + timedelta(days=1)).isoformat()
     resposta = cliente.post(
         "/api/agendamentos",
         json={
             "servico_id": 1,
             "barbeiro_id": str(barbeiro_id),
-            "data": (date.today() + timedelta(days=1)).isoformat(),
+            "data": data_primeiro,
             "horario": "09:00",
         },
     )
@@ -382,16 +383,39 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     assert resposta.status_code == 201
     assert resposta.json["agendamento"]["servico"] == "Corte"
     assert resposta.json["agendamento"]["barbeiro"] == "Daniel Gabriel"
-    assert cliente.get("/api/meu-agendamento").json["agendamento"] == {
-        "id": 1,
-        "data": (date.today() + timedelta(days=1)).isoformat(),
-        "horario": "09:00",
-        "servico": "Corte",
-        "duracao": 30,
-        "preco": 35.0,
-        "barbeiro": "Daniel Gabriel",
-        "status": "pendente",
-    }
+    data_segundo = (date.today() + timedelta(days=2)).isoformat()
+    assert cliente.post(
+        "/api/agendamentos",
+        json={
+            "servico_id": 2,
+            "barbeiro_id": str(barbeiro_id),
+            "data": data_segundo,
+            "horario": "10:00",
+        },
+    ).status_code == 201
+    agendamentos = cliente.get("/api/meu-agendamento").json["agendamentos"]
+    assert agendamentos == [
+        {
+            "id": 1,
+            "data": data_primeiro,
+            "horario": "09:00",
+            "servico": "Corte",
+            "duracao": 30,
+            "preco": 35.0,
+            "barbeiro": "Daniel Gabriel",
+            "status": "pendente",
+        },
+        {
+            "id": 2,
+            "data": data_segundo,
+            "horario": "10:00",
+            "servico": "Barba",
+            "duracao": 20,
+            "preco": 25.0,
+            "barbeiro": "Daniel Gabriel",
+            "status": "pendente",
+        },
+    ]
     assert app_module.app.test_client().get("/api/meu-agendamento").status_code == 403
     assert cliente.get("/api/agendamentos-pendentes").status_code == 403
     barbeiro = app_module.app.test_client()
@@ -405,26 +429,19 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     ).status_code == 200
     pendentes = barbeiro.get("/api/agendamentos-pendentes")
     assert pendentes.status_code == 200
-    assert pendentes.json["agendamentos"] == [
-        {
-            "id": 1,
-            "data": (date.today() + timedelta(days=1)).isoformat(),
-            "horario": "09:00",
-            "servico": "Corte",
-            "duracao": 30,
-            "preco": 35.0,
-            "cliente": "Maria da Silva",
-        }
-    ]
+    assert [item["id"] for item in pendentes.json["agendamentos"]] == [1, 2]
     decisao = barbeiro.post("/api/agendamentos/1/decisao", json={"status": "confirmado"})
     assert decisao.status_code == 200
-    assert barbeiro.get("/api/agendamentos-pendentes").json["agendamentos"] == []
-    assert cliente.get("/api/meu-agendamento").json["agendamento"]["status"] == "confirmado"
+    assert [
+        item["id"] for item in barbeiro.get("/api/agendamentos-pendentes").json["agendamentos"]
+    ] == [2]
+    agendamentos = cliente.get("/api/meu-agendamento").json["agendamentos"]
+    assert [item["status"] for item in agendamentos] == ["confirmado", "pendente"]
     assert barbeiro.post(
         "/api/agendamentos/1/decisao", json={"status": "cancelado"}
     ).status_code == 409
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
-        assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 2
 
 
 def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
@@ -461,7 +478,7 @@ def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
     assert barbeiro.post(
         "/api/agendamentos/1/decisao", json={"status": "cancelado"}
     ).status_code == 200
-    assert cliente.get("/api/meu-agendamento").json["agendamento"]["status"] == "cancelado"
+    assert cliente.get("/api/meu-agendamento").json["agendamentos"][0]["status"] == "cancelado"
     assert cliente.post("/api/agendamentos", json=dados).status_code == 201
 
 
