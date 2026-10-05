@@ -89,6 +89,7 @@ body {
 .marca {
   flex: 1;
   padding: 14px 28px 12px;
+  padding-left: 12px;
 }
 
 .marca h1 {
@@ -347,6 +348,20 @@ body {
   margin-bottom: 14px;
 }
 
+.painel-servicos-disponiveis .cabecalho-painel {
+  margin-bottom: 6px;
+}
+
+.subtexto-pagamento {
+  margin: 0 0 10px;
+  color: var(--suave);
+  font-size: 0.88rem;
+}
+
+.painel-servicos-disponiveis #instrucao-servicos {
+  margin-top: 0;
+}
+
 .painel h2 {
   margin: 0;
   color: var(--azul-escuro);
@@ -539,6 +554,10 @@ body {
   font-size: 0.8rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.botao-tema {
+  margin-right: 8px;
 }
 
 .botao-sair:hover:not(:disabled),
@@ -769,10 +788,11 @@ body {
 @media (max-width: 600px) {
   .marca {
     padding-inline: 18px;
+    padding-left: 8px;
   }
 
   .botao-tema {
-    margin-right: 18px;
+    margin-right: 24px;
     padding-inline: 8px;
     font-size: 0.72rem;
   }
