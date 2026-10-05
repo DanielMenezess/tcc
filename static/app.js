@@ -103,10 +103,17 @@ let confirmandoAgendamento = false;
 let contasClientes = [];
 let contasBarbeiros = [];
 
+document.body.insertBefore(navegacaoUsuario, document.querySelector("main"));
+
 new ResizeObserver(() => {
   const alturaCabecalho = cabecalhoSite.getBoundingClientRect().height;
   document.documentElement.style.setProperty("--altura-cabecalho", `${alturaCabecalho}px`);
 }).observe(cabecalhoSite);
+
+new ResizeObserver(() => {
+  const alturaMenu = navegacaoUsuario.getBoundingClientRect().height;
+  document.documentElement.style.setProperty("--altura-menu-mobile", `${alturaMenu}px`);
+}).observe(navegacaoUsuario);
 
 function atualizarBotaoTema(tema) {
   const temaEscuro = tema === "escuro";

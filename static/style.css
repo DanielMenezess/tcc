@@ -30,6 +30,7 @@
   --foco: rgba(40, 120, 200, 0.28);
   --foco-suave: rgba(40, 120, 200, 0.2);
   --altura-cabecalho: 76px;
+  --altura-menu-mobile: 0px;
 }
 
 :root[data-tema="escuro"] {
@@ -176,7 +177,8 @@ body {
 }
 
 .usuario-logado .cabecalho {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 6;
   width: auto;
   margin-left: 0;
@@ -979,6 +981,8 @@ body {
   }
 
   .usuario-logado .cabecalho {
+    position: sticky;
+    top: 0;
     width: auto;
     margin-left: 0;
   }
@@ -988,16 +992,25 @@ body {
   }
 
   .navegacao-cliente {
-    position: static;
+    position: fixed;
+    top: var(--altura-cabecalho);
+    right: 0;
+    bottom: auto;
+    left: 0;
+    z-index: 5;
     width: auto;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     gap: 14px 10px;
     padding: 14px;
-    margin-inline: calc((100vw - 100%) / -2);
+    margin-inline: 0;
     border: 0;
     border-block: 1px solid var(--linha);
+  }
+
+  .usuario-logado .area-conteudo {
+    padding-top: var(--altura-menu-mobile);
   }
 
   .perfil-cliente {
