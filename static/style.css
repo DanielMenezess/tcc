@@ -168,6 +168,41 @@ body {
   font-size: 1.2rem;
 }
 
+.destaque-agendamento {
+  border-left: 5px solid var(--sucesso);
+  background: var(--azul-claro);
+}
+
+.destaque-agendamento h2 {
+  color: var(--sucesso);
+}
+
+.detalhes-agendamento {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 20px;
+  margin: 0;
+}
+
+.dado-agendamento dt {
+  color: var(--suave);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dado-agendamento dd {
+  margin: 4px 0 0;
+  color: var(--texto);
+  font-size: 0.95rem;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.dado-agendamento:last-child dd {
+  color: var(--sucesso);
+}
+
 .texto-introdutorio {
   margin: 12px 0 18px;
   color: var(--suave);
@@ -657,6 +692,10 @@ body {
     margin-top: 16px;
   }
 
+  .detalhes-agendamento {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .painel {
     padding: 16px 14px;
   }
@@ -666,6 +705,11 @@ body {
   .campos-formulario {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .detalhes-agendamento {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .campo-nome,

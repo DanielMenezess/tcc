@@ -4,7 +4,7 @@ import sqlite3
 import math
 import os
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from flask import Flask, jsonify, request, session
@@ -474,6 +474,31 @@ def listar_agendamentos_barbeiro():
             (data_texto, *ids_barbeiro),
         )]
     return jsonify(data=data_texto, agendamentos=agendamentos)
+
+
+@app.get("/api/meu-agendamento")
+def listar_proximo_agendamento_cliente():
+    if session.get("tipo") != "clientes" or not conta_ativa():
+        return jsonify(erro="Apenas clientes podem consultar seus agendamentos."), 403
+
+    agora = datetime.now()
+    with sqlite3.connect(DB_PATH) as db:
+        db.row_factory = sqlite3.Row
+        agendamentos = db.execute(
+            "SELECT id, data_agendamento AS data, horario, servico_nome AS servico, "
+            "duracao, preco, barbeiro_nome AS barbeiro FROM agendamento "
+            "WHERE cliente_id = ? AND data_agendamento >= ? "
+            "ORDER BY data_agendamento, horario, id",
+            (session["usuario_id"], agora.date().isoformat()),
+        ).fetchall()
+
+    for agendamento in agendamentos:
+        inicio = datetime.fromisoformat(f"{agendamento['data']}T{agendamento['horario']}")
+        fim = inicio + timedelta(minutes=agendamento["duracao"])
+        if fim > agora:
+            return jsonify(agendamento=dict(agendamento))
+
+    return jsonify(agendamento=None)
 
 
 @app.get("/api/historico-servicos")

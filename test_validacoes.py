@@ -355,6 +355,16 @@ def testar_cliente_confirma_agendamento(tmp_path, monkeypatch):
     assert resposta.status_code == 201
     assert resposta.json["agendamento"]["servico"] == "Corte"
     assert resposta.json["agendamento"]["barbeiro"] == "Daniel Gabriel"
+    assert cliente.get("/api/meu-agendamento").json["agendamento"] == {
+        "id": 1,
+        "data": (date.today() + timedelta(days=1)).isoformat(),
+        "horario": "09:00",
+        "servico": "Corte",
+        "duracao": 30,
+        "preco": 35.0,
+        "barbeiro": "Daniel Gabriel",
+    }
+    assert app_module.app.test_client().get("/api/meu-agendamento").status_code == 403
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
         assert db.execute("SELECT COUNT(*) FROM agendamento").fetchone()[0] == 1
 
