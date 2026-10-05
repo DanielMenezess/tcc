@@ -63,6 +63,10 @@ const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
+const formatarPrecoComCentavos = new Intl.NumberFormat("pt-BR", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 const nomeBarbeiroValido = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$/;
 let perfilSelecionado = "clientes";
 let perfilLoginSelecionado = "clientes";
@@ -281,9 +285,9 @@ async function carregarProximoAgendamento() {
       ["Horário", agendamento.horario],
       ["Data", agendamento.data.split("-").reverse().join("/")],
       ["Barbeiro", agendamento.barbeiro],
-      ["Corte", agendamento.servico],
+      ["Serviço", agendamento.servico],
       ["Duração", `${agendamento.duracao} min`],
-      ["Valor", `R$ ${formatarPreco.format(agendamento.preco)}`],
+      ["Valor", `R$ ${formatarPrecoComCentavos.format(agendamento.preco)}`],
     ];
 
     dados.forEach(([rotulo, valor]) => {
