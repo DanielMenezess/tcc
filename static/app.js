@@ -11,11 +11,17 @@ const campoTelefone = document.getElementById("cadastro-telefone");
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
 const botaoLogin = document.getElementById("botao-login");
-const botaoSair = document.getElementById("botao-sair");
+const botoesSair = Array.from(document.querySelectorAll(".botao-sair"));
 const botaoTema = document.getElementById("botao-tema");
+const botoesTema = [botaoTema, document.getElementById("botao-tema-cliente")];
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
 const telaServicos = document.getElementById("tela-servicos");
+const navegacaoCliente = document.getElementById("navegacao-cliente");
+const cabecalhoBarbeiro = document.getElementById("cabecalho-barbeiro");
+const painelAgendarCliente = document.getElementById("painel-agendar-cliente");
+const painelAgendamentosCliente = document.getElementById("painel-agendamentos-cliente");
+const abasCliente = Array.from(document.querySelectorAll("[data-aba-cliente]"));
 const painelProximoAgendamento = document.getElementById("painel-proximo-agendamento");
 const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
 const listaProximosAgendamentos = document.getElementById("lista-proximos-agendamentos");
@@ -89,8 +95,10 @@ let contasBarbeiros = [];
 function atualizarBotaoTema(tema) {
   const temaEscuro = tema === "escuro";
   document.documentElement.dataset.tema = temaEscuro ? "escuro" : "claro";
-  botaoTema.textContent = temaEscuro ? "Ativar tema claro" : "Ativar tema escuro";
-  botaoTema.setAttribute("aria-pressed", String(temaEscuro));
+  botoesTema.forEach((botao) => {
+    botao.textContent = temaEscuro ? "Ativar tema claro" : "Ativar tema escuro";
+    botao.setAttribute("aria-pressed", String(temaEscuro));
+  });
   document.querySelector('meta[name="theme-color"]').content = temaEscuro ? "#171a1f" : "#ffffff";
 }
 
@@ -100,15 +108,13 @@ try {
   atualizarBotaoTema("claro");
 }
 
-botaoTema.addEventListener("click", () => {
+botoesTema.forEach((botao) => botao.addEventListener("click", () => {
   const tema = document.documentElement.dataset.tema === "escuro" ? "claro" : "escuro";
   atualizarBotaoTema(tema);
   try {
     localStorage.setItem("fadehouse-tema", tema);
-  } catch {
-    return;
-  }
-});
+  } catch {}
+}));
 
 function dataLocalAtual() {
   const agora = new Date();
@@ -215,11 +221,43 @@ function mostrarLogin() {
   telaServicos.hidden = true;
 }
 
+function selecionarAbaCliente(tipo) {
+  const agendamentosSelecionados = tipo === "agendamentos";
+  painelAgendarCliente.hidden = agendamentosSelecionados;
+  painelAgendamentosCliente.hidden = !agendamentosSelecionados;
+  abasCliente.forEach((aba) => {
+    const selecionada = aba.dataset.abaCliente === tipo;
+    aba.classList.toggle("selecionada", selecionada);
+    aba.setAttribute("aria-selected", String(selecionada));
+    aba.tabIndex = selecionada ? 0 : -1;
+  });
+  if (agendamentosSelecionados) carregarProximosAgendamentos();
+}
+
+abasCliente.forEach((aba, indice) => {
+  aba.addEventListener("click", () => selecionarAbaCliente(aba.dataset.abaCliente));
+  aba.addEventListener("keydown", (evento) => {
+    const direcoes = { ArrowRight: 1, ArrowLeft: -1, Home: -indice, End: abasCliente.length - indice - 1 };
+    if (!(evento.key in direcoes)) return;
+    evento.preventDefault();
+    const proximaAba = (indice + direcoes[evento.key] + abasCliente.length) % abasCliente.length;
+    abasCliente[proximaAba].focus();
+    selecionarAbaCliente(abasCliente[proximaAba].dataset.abaCliente);
+  });
+});
+
 function mostrarServicos(usuario) {
   tipoUsuario = usuario.tipo;
+  const cliente = tipoUsuario === "clientes";
   telaCadastro.hidden = true;
   telaLogin.hidden = true;
   telaServicos.hidden = false;
+  telaServicos.classList.toggle("cliente-ativo", cliente);
+  document.body.classList.toggle("cliente-logado", cliente);
+  navegacaoCliente.hidden = !cliente;
+  cabecalhoBarbeiro.hidden = cliente;
+  painelAgendarCliente.hidden = false;
+  painelAgendamentosCliente.hidden = true;
   painelProximoAgendamento.hidden = tipoUsuario !== "clientes";
   painelAgendamentosPendentes.hidden = tipoUsuario !== "barbeiros";
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
@@ -249,7 +287,9 @@ function mostrarServicos(usuario) {
   botaoConfirmarAgendamento.textContent = "Solicitar agendamento";
   atualizarResumoAgendamento();
   renderizarHorarios();
-  document.getElementById("boas-vindas").textContent = `Olá, ${usuario.nome}`;
+  document.getElementById("boas-vindas-cliente").textContent = `Olá, ${usuario.nome}`;
+  document.getElementById("boas-vindas-barbeiro").textContent = `Olá, ${usuario.nome}`;
+  selecionarAbaCliente("agendar");
   document.getElementById("tipo-usuario").textContent = tipoUsuario === "barbeiros"
     ? "Área do barbeiro"
     : "Área do cliente";
@@ -1243,12 +1283,13 @@ botaoConfirmarAgendamento.addEventListener("click", async () => {
   }
 });
 
-botaoSair.addEventListener("click", async () => {
+botoesSair.forEach((botaoSair) => botaoSair.addEventListener("click", async () => {
   botaoSair.disabled = true;
   try {
     const resposta = await fetch("/api/sair", { method: "POST" });
     if (!resposta.ok) throw new Error("Falha ao encerrar a sessão.");
     tipoUsuario = null;
+    document.body.classList.remove("cliente-logado");
     mensagemCadastro.textContent = "";
     mostrarCadastro();
   } catch {
@@ -1256,7 +1297,7 @@ botaoSair.addEventListener("click", async () => {
   } finally {
     botaoSair.disabled = false;
   }
-});
+}));
 
 async function iniciar() {
   try {
