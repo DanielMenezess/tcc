@@ -430,6 +430,29 @@ body {
   color: var(--texto-detalhe);
 }
 
+.agendamento-pendente-info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+
+.agendamento-pendente-titulo {
+  flex: 0 1 auto;
+}
+
+.agendamento-pendente-detalhes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 0.8rem;
+}
+
+.agendamento-pendente-detalhes span {
+  white-space: nowrap;
+}
+
 .botao-escolher,
 .botao-remover,
 .botao-aprovar,

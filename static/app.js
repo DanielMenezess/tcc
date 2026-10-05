@@ -381,14 +381,30 @@ async function carregarAgendamentosPendentes() {
 
     corpo.agendamentos.forEach((agendamento) => {
       const item = document.createElement("li");
-      item.className = "servico";
+      item.className = "servico agendamento-pendente";
       const informacoes = document.createElement("div");
-      informacoes.className = "servico-info";
+      informacoes.className = "servico-info agendamento-pendente-info";
       const titulo = document.createElement("strong");
-      titulo.textContent = agendamento.servico;
+      const partesNome = (agendamento.cliente || "Cliente não encontrado").trim().split(/\s+/);
+      const particulasSobrenome = ["da", "das", "de", "do", "dos"];
+      let inicioSobrenome = partesNome.length - 1;
+      if (inicioSobrenome > 1 && particulasSobrenome.includes(partesNome[inicioSobrenome - 1].toLowerCase())) {
+        inicioSobrenome -= 1;
+      }
+      const nomeCliente = [partesNome[0], ...partesNome.slice(inicioSobrenome)].join(" ");
+      titulo.className = "agendamento-pendente-titulo";
+      titulo.textContent = `${agendamento.servico} · ${nomeCliente}`;
       const detalhe = document.createElement("span");
-      detalhe.className = "servico-detalhe";
-      detalhe.textContent = `${agendamento.cliente || "Cliente não encontrado"} · ${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario} · ${agendamento.duracao} min · R$ ${formatarPreco.format(agendamento.preco)}`;
+      detalhe.className = "servico-detalhe agendamento-pendente-detalhes";
+      [
+        `${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario}`,
+        `${agendamento.duracao} min`,
+        `R$ ${formatarPreco.format(agendamento.preco)}`,
+      ].forEach((texto) => {
+        const campo = document.createElement("span");
+        campo.textContent = texto;
+        detalhe.append(campo);
+      });
       informacoes.append(titulo, detalhe);
 
       const acoes = document.createElement("div");
@@ -1216,7 +1232,7 @@ botaoConfirmarAgendamento.addEventListener("click", async () => {
     resumoAgendamento.textContent = `${agendamento.servico} com ${agendamento.barbeiro}, em ${agendamento.data.split("-").reverse().join("/")} às ${agendamento.horario}.`;
     mensagemAgendamento.textContent = "Solicitação enviada ao barbeiro, aguardando confirmação.";
     botaoConfirmarAgendamento.textContent = "Solicitação enviada";
-    await carregarProximoAgendamento();
+    await carregarProximosAgendamentos();
   } catch {
     mensagemAgendamento.textContent = "Sem conexão com o servidor. Tente novamente.";
   } finally {
