@@ -251,6 +251,11 @@ body {
   overflow-wrap: anywhere;
 }
 
+.nome-barbeiro,
+.dado-agendamento-barbeiro dd {
+  text-transform: uppercase;
+}
+
 .dado-agendamento:last-child dd {
   color: var(--sucesso);
 }

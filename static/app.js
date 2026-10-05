@@ -317,6 +317,7 @@ async function carregarProximosAgendamentos(silencioso = false) {
       dados.forEach(([rotulo, valor]) => {
         const campo = document.createElement("div");
         campo.className = "dado-agendamento";
+        if (rotulo === "Barbeiro") campo.classList.add("dado-agendamento-barbeiro");
         const titulo = document.createElement("dt");
         titulo.textContent = rotulo;
         const detalhe = document.createElement("dd");
@@ -905,6 +906,7 @@ function renderizarBarbeiros(barbeiros) {
     const informacoes = document.createElement("div");
     informacoes.className = "servico-info";
     const nome = document.createElement("strong");
+    nome.className = "nome-barbeiro";
     nome.textContent = barbeiro.nome;
     informacoes.append(nome);
 
