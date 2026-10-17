@@ -335,7 +335,9 @@ function mostrarLogin() {
 
 function paineisDaAba(tipo) {
   if (tipoUsuario === "clientes") {
-    return tipo === "agendar" ? [painelAgendarCliente] : [painelAgendamentosCliente];
+    if (tipo === "agendar") return [painelAgendarCliente];
+    if (tipo === "historico") return [painelHistoricoServicos];
+    return [painelAgendamentosCliente];
   }
 
   if (tipo === "agendamentos") {
@@ -368,13 +370,14 @@ function selecionarAbaUsuario(tipo) {
     aba.tabIndex = selecionada ? 0 : -1;
   });
   if (tipoUsuario === "clientes" && tipo === "agendamentos") carregarProximosAgendamentos();
+  if (tipo === "historico") carregarHistoricoServicos();
 }
 
 function renderizarAbasUsuario(usuario) {
   const cliente = usuario.tipo === "clientes";
   const administrador = usuario.administrador === true;
   const itens = cliente
-    ? [["agendar", "Agende aqui"], ["agendamentos", "Agendamentos"]]
+    ? [["agendar", "Agende aqui"], ["agendamentos", "Agendamentos"], ["historico", "Histórico"]]
     : [["agendamentos", "Agendamentos"], ["servicos", "Serviços"], ["historico", "Histórico"]];
   if (administrador) itens.push(["administracao", "Administração"]);
 
@@ -434,7 +437,7 @@ function mostrarServicos(usuario) {
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
   painelContasAdministrador.hidden = !usuario.administrador;
   painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
-  painelHistoricoServicos.hidden = tipoUsuario !== "barbeiros";
+  painelHistoricoServicos.hidden = false;
   painelEscolherBarbeiro.hidden = tipoUsuario !== "clientes";
   painelEscolherData.hidden = tipoUsuario !== "clientes";
   painelEscolherHorario.hidden = true;
@@ -518,6 +521,14 @@ async function carregarProximosAgendamentos(silencioso = false) {
         remover.title = "Remover agendamento cancelado";
         remover.textContent = "×";
         item.append(remover);
+      } else if (agendamento.status === "pendente" || agendamento.status === "confirmado") {
+        item.classList.add("agendamento-com-cancelamento");
+        const cancelar = document.createElement("button");
+        cancelar.type = "button";
+        cancelar.className = "botao-cancelar-agendamento";
+        cancelar.dataset.id = agendamento.id;
+        cancelar.textContent = "Cancelar";
+        item.append(cancelar);
       }
       const detalhes = document.createElement("dl");
       detalhes.className = "detalhes-agendamento";
@@ -556,19 +567,22 @@ async function carregarProximosAgendamentos(silencioso = false) {
 }
 
 listaProximosAgendamentos.addEventListener("click", async (evento) => {
-  const botao = evento.target.closest(".botao-remover-agendamento");
-  if (!botao) return;
+  const botaoRemover = evento.target.closest(".botao-remover-agendamento");
+  const botaoCancelar = evento.target.closest(".botao-cancelar-agendamento");
+  if (!botaoRemover && !botaoCancelar) return;
+  const botao = botaoRemover || botaoCancelar;
+  if (botaoCancelar && !window.confirm("Deseja cancelar este agendamento?")) return;
 
   botao.disabled = true;
   try {
-    const resposta = await fetch(`/api/meu-agendamento/${botao.dataset.id}`, {
-      method: "DELETE",
-    });
+    const resposta = botaoRemover
+      ? await fetch(`/api/meu-agendamento/${botao.dataset.id}`, { method: "DELETE" })
+      : await fetch(`/api/meu-agendamento/${botao.dataset.id}/cancelar`, { method: "POST" });
     const corpo = resposta.status === 204 ? {} : await resposta.json();
-    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível remover o agendamento.");
-    await carregarProximosAgendamentos();
+    if (!resposta.ok) throw new Error(corpo.erro || "Não foi possível atualizar o agendamento.");
+    await Promise.all([carregarProximosAgendamentos(), carregarDisponibilidadeHorarios()]);
   } catch (erro) {
-    statusProximoAgendamento.textContent = erro.message || "Não foi possível remover o agendamento.";
+    statusProximoAgendamento.textContent = erro.message || "Não foi possível atualizar o agendamento.";
     botao.disabled = false;
   }
 });
@@ -781,7 +795,7 @@ painelAgendamentosAConcluir.addEventListener("click", async (evento) => {
   }
 });
 
-function renderizarHistoricoServicos(historico, administrador) {
+function renderizarHistoricoServicos(historico, administrador, cliente) {
   listaHistoricoServicos.replaceChildren();
   totalHistoricoServicos.textContent = `${historico.length} ${historico.length === 1 ? "serviço realizado" : "serviços realizados"}`;
 
@@ -803,7 +817,10 @@ function renderizarHistoricoServicos(historico, administrador) {
     const detalhes = document.createElement("span");
     detalhes.className = "servico-detalhe detalhe-conta";
     const [ano, mes, dia] = servico.data.split("-");
-    detalhes.textContent = `${dia}/${mes}/${ano} às ${servico.horario} · ${servico.cliente || "Cliente não encontrado"} · ${servico.duracao} min · R$ ${formatarPreco.format(servico.preco)}`;
+    const pessoa = cliente
+      ? servico.barbeiro || "Barbeiro não encontrado"
+      : servico.cliente || "Cliente não encontrado";
+    detalhes.textContent = `${dia}/${mes}/${ano} às ${servico.horario} · ${pessoa} · ${servico.duracao} min · R$ ${formatarPreco.format(servico.preco)}`;
     informacoes.append(titulo, detalhes);
     item.append(informacoes);
     listaHistoricoServicos.append(item);
@@ -822,7 +839,7 @@ async function carregarHistoricoServicos() {
     const resposta = await fetch("/api/historico-servicos");
     const corpo = await resposta.json();
     if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar histórico.");
-    renderizarHistoricoServicos(corpo.historico, corpo.administrador);
+    renderizarHistoricoServicos(corpo.historico, corpo.administrador, tipoUsuario === "clientes");
   } catch {
     totalHistoricoServicos.textContent = "";
     const erro = document.createElement("li");

@@ -666,6 +666,80 @@ def testar_recusa_cancela_agendamento_e_libera_o_horario(tmp_path, monkeypatch):
     assert cliente.post("/api/agendamentos", json=dados).status_code == 201
 
 
+def testar_cliente_cancela_agendamento_libera_horario_e_remove_da_agenda(tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
+    app_module.init_db()
+    cliente = app_module.app.test_client()
+    assert cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "maria@teste.com",
+            "telefone": "41911111111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+    outro_cliente = app_module.app.test_client()
+    assert outro_cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Ana da Silva",
+            "email": "ana@teste.com",
+            "telefone": "41922222222",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
+    barbeiro = app_module.app.test_client()
+    assert entrar_administrador(barbeiro).status_code == 200
+
+    data = date.today() + timedelta(days=1)
+    while data.weekday() == 6:
+        data += timedelta(days=1)
+    data_texto = data.isoformat()
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        cliente_id = db.execute(
+            "SELECT id FROM cliente WHERE email = ?", ("maria@teste.com",)
+        ).fetchone()[0]
+        barbeiro_id = db.execute(
+            "SELECT id FROM barbeiro WHERE email = ?", (app_module.ADMIN_EMAIL,)
+        ).fetchone()[0]
+        db.execute(
+            "INSERT INTO agendamento "
+            "(cliente_id, servico_id, servico_nome, barbeiro_id, barbeiro_nome, "
+            "data_agendamento, horario, duracao, preco, status) "
+            "VALUES (?, 1, 'Corte', ?, 'Daniel Gabriel', ?, '09:00', 30, 35, 'confirmado')",
+            (cliente_id, str(barbeiro_id), data_texto),
+        )
+
+    disponibilidade_url = (
+        f"/api/horarios-disponiveis?barbeiro_id={barbeiro_id}&servico_id=1&data={data_texto}"
+    )
+    assert cliente.get(disponibilidade_url).json["ocupados"] == [
+        {"inicio": "09:00", "fim": "09:30"}
+    ]
+    assert outro_cliente.post("/api/meu-agendamento/1/cancelar").status_code == 404
+    cancelamento = cliente.post("/api/meu-agendamento/1/cancelar")
+    assert cancelamento.status_code == 200
+    assert cancelamento.json["status"] == "cancelado"
+    assert cliente.get("/api/meu-agendamento").json["agendamentos"][0]["status"] == "cancelado"
+
+    agenda_barbeiro = barbeiro.get(f"/api/agendamentos?data={data_texto}")
+    assert agenda_barbeiro.status_code == 200
+    assert agenda_barbeiro.json["agendamentos"] == []
+    assert cliente.get(disponibilidade_url).json["ocupados"] == []
+    assert cliente.post(
+        "/api/agendamentos",
+        json={
+            "servico_id": 1,
+            "barbeiro_id": str(barbeiro_id),
+            "data": data_texto,
+            "horario": "09:00",
+        },
+    ).status_code == 201
+
+
 def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
@@ -791,11 +865,25 @@ def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_par
             "confirmar_senha": "senha-segura-123",
         },
     )
+    outro_cliente = app_module.app.test_client()
+    assert outro_cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Ana da Silva",
+            "email": "ana@teste.com",
+            "telefone": "41944444444",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    ).status_code == 201
     ontem = (date.today() - timedelta(days=1)).isoformat()
     amanha = (date.today() + timedelta(days=1)).isoformat()
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
         id_cliente = db.execute(
             "SELECT id FROM cliente WHERE email = ?", ("maria@teste.com",)
+        ).fetchone()[0]
+        id_outro_cliente = db.execute(
+            "SELECT id FROM cliente WHERE email = ?", ("ana@teste.com",)
         ).fetchone()[0]
         id_barbeiro = db.execute(
             "SELECT id FROM barbeiro WHERE email = ?", ("joao@teste.com",)
@@ -816,13 +904,25 @@ def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_par
                 (id_cliente, 2, "Barba", str(id_barbeiro), "João da Silva", amanha, "10:00", 20, 25, "confirmado"),
                 (id_cliente, 3, "Corte + Barba", str(id_outro_barbeiro), "Carlos Souza", ontem, "11:00", 50, 55, "concluido"),
                 (id_cliente, 4, "Sobrancelha", str(id_admin), "Daniel Gabriel", ontem, "12:00", 10, 15, "concluido"),
+                (id_outro_cliente, 1, "Outro corte", str(id_admin), "Daniel Gabriel", ontem, "13:00", 30, 35, "concluido"),
             ],
         )
 
     historico_barbeiro = barbeiro.get("/api/historico-servicos")
     assert historico_barbeiro.status_code == 200
     assert [item["servico"] for item in historico_barbeiro.json["historico"]] == ["Corte"]
-    assert cliente.get("/api/historico-servicos").status_code == 403
+    historico_cliente = cliente.get("/api/historico-servicos")
+    assert historico_cliente.status_code == 200
+    assert [item["servico"] for item in historico_cliente.json["historico"]] == [
+        "Sobrancelha",
+        "Corte + Barba",
+        "Corte",
+    ]
+    assert {item["barbeiro"] for item in historico_cliente.json["historico"]} == {
+        "Carlos Souza",
+        "Daniel Gabriel",
+        "João da Silva",
+    }
 
     historico_admin = administrador.get("/api/historico-servicos")
     assert historico_admin.status_code == 200

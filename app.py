@@ -755,6 +755,36 @@ def listar_proximos_agendamentos_cliente():
     return jsonify(agendamentos=proximos_agendamentos)
 
 
+@app.post("/api/meu-agendamento/<int:agendamento_id>/cancelar")
+def cancelar_agendamento_cliente(agendamento_id):
+    if session.get("tipo") != "clientes" or not conta_ativa():
+        return jsonify(erro="Apenas clientes podem cancelar seus agendamentos."), 403
+
+    with sqlite3.connect(DB_PATH) as db:
+        db.execute("BEGIN IMMEDIATE")
+        agendamento = db.execute(
+            "SELECT status, data_agendamento, horario FROM agendamento "
+            "WHERE id = ? AND cliente_id = ?",
+            (agendamento_id, session["usuario_id"]),
+        ).fetchone()
+        if not agendamento:
+            return jsonify(erro="Agendamento não encontrado."), 404
+        if agendamento[0] not in ("pendente", "confirmado"):
+            return jsonify(erro="Este agendamento não pode mais ser cancelado."), 409
+        try:
+            inicio = horario_local(agendamento[1], agendamento[2])
+        except (TypeError, ValueError):
+            return jsonify(erro="Não foi possível validar o horário do agendamento."), 400
+        if inicio <= agora_local():
+            return jsonify(erro="Não é possível cancelar um serviço que já começou."), 409
+        db.execute(
+            "UPDATE agendamento SET status = 'cancelado' WHERE id = ?",
+            (agendamento_id,),
+        )
+
+    return jsonify(ok=True, status="cancelado")
+
+
 @app.delete("/api/meu-agendamento/<int:agendamento_id>")
 def excluir_agendamento_cancelado_cliente(agendamento_id):
     if session.get("tipo") != "clientes" or not conta_ativa():
@@ -777,10 +807,11 @@ def excluir_agendamento_cancelado_cliente(agendamento_id):
 
 @app.get("/api/historico-servicos")
 def listar_historico_servicos():
-    if session.get("tipo") != "barbeiros" or not conta_ativa():
-        return jsonify(erro="Apenas barbeiros podem consultar o histórico de serviços."), 403
+    tipo = session.get("tipo")
+    if tipo not in ("clientes", "barbeiros") or not conta_ativa():
+        return jsonify(erro="Entre em uma conta para consultar o histórico de serviços."), 403
 
-    administrador = exigir_administrador()
+    administrador = tipo == "barbeiros" and exigir_administrador()
     consulta = (
         "SELECT a.id, a.data_agendamento AS data, a.horario, "
         "a.servico_nome AS servico, a.duracao, a.preco, "
@@ -789,7 +820,10 @@ def listar_historico_servicos():
         "WHERE a.status = 'concluido' "
     )
     parametros = []
-    if not administrador:
+    if tipo == "clientes":
+        consulta += "AND a.cliente_id = ? "
+        parametros.append(session["usuario_id"])
+    elif not administrador:
         consulta += "AND a.barbeiro_id = ? "
         parametros.append(str(session["usuario_id"]))
     consulta += "ORDER BY a.data_agendamento DESC, a.horario DESC, a.id DESC"

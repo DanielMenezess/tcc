@@ -349,6 +349,40 @@ body {
   padding-top: 46px;
 }
 
+.item-proximo-agendamento.agendamento-com-cancelamento {
+  padding-top: 46px;
+}
+
+.botao-cancelar-agendamento {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 30px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--erro);
+  border-radius: 4px;
+  color: var(--erro);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.botao-cancelar-agendamento:hover:not(:disabled) {
+  background: var(--erro);
+  color: #ffffff;
+}
+
+.botao-cancelar-agendamento:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.botao-cancelar-agendamento:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .botao-remover-agendamento {
   position: absolute;
   top: 8px;
