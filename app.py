@@ -188,6 +188,8 @@ def cadastrar(tipo):
     tabela = TABELAS.get(tipo)
     if not tabela:
         return jsonify(erro="Tipo de cadastro inexistente."), 404
+    if tipo != "clientes":
+        return jsonify(erro="O cadastro de barbeiros é feito pela administração."), 403
 
     entrada = request.get_json(silent=True) or {}
     dados, erros = validar(entrada, tipo=tipo)
@@ -233,22 +235,12 @@ def cadastrar(tipo):
                 return jsonify(erros=erros), 409
 
             senha_hash = generate_password_hash(senha)
-            if tipo == "barbeiros":
-                db.execute(
-                    "INSERT INTO solicitacao_barbeiro (nome, email, telefone, senha_hash) "
-                    "VALUES (?, ?, ?, ?)",
-                    (dados["nome"], dados["email"], dados["telefone"], senha_hash),
-                )
-            else:
-                cursor = db.execute(
-                    f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
-                    (dados["nome"], dados["email"], dados["telefone"], senha_hash),
-                )
+            cursor = db.execute(
+                f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
+                (dados["nome"], dados["email"], dados["telefone"], senha_hash),
+            )
     except sqlite3.IntegrityError:
         return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409
-
-    if tipo == "barbeiros":
-        return jsonify(ok=True, solicitacao="pendente"), 202
 
     session.clear()
     session["tipo"] = tipo
@@ -260,47 +252,50 @@ def cadastrar(tipo):
 @app.post("/api/login")
 def login():
     dados = request.get_json(silent=True) or {}
-    tipo = dados.get("tipo")
-    tabela = TABELAS.get(tipo)
     identificador = str(dados.get("identificador", "")).strip()
     senha = str(dados.get("senha", ""))
 
     usuarios = []
-    if tabela and senha:
+    if senha:
         with sqlite3.connect(DB_PATH) as db:
             if EMAIL_RE.fullmatch(identificador.lower()):
-                usuarios = db.execute(
-                    f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} WHERE email = ?",
-                    (identificador.lower(),),
-                ).fetchall()
+                for tipo_conta, tabela in TABELAS.items():
+                    contas = db.execute(
+                        f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} "
+                        "WHERE lower(email) = ?",
+                        (identificador.lower(),),
+                    ).fetchall()
+                    usuarios.extend((tipo_conta, conta) for conta in contas)
             else:
                 telefone = re.sub(r"\D", "", identificador)
                 formato_telefone = re.fullmatch(r"[+\d()\s.-]+", identificador)
                 if formato_telefone and len(telefone) in (10, 11):
-                    usuarios = db.execute(
-                        f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} WHERE telefone = ?",
-                        (telefone,),
-                    ).fetchall()
+                    for tipo_conta, tabela in TABELAS.items():
+                        contas = db.execute(
+                            f"SELECT id, nome, senha_hash, telefone, email FROM {tabela} "
+                            "WHERE telefone = ?",
+                            (telefone,),
+                        ).fetchall()
+                        usuarios.extend((tipo_conta, conta) for conta in contas)
 
-    usuario = next(
-        (conta for conta in usuarios if conta[2] and check_password_hash(conta[2], senha)),
-        None,
-    )
+    if len(usuarios) != 1:
+        return jsonify(erro="E-mail/telefone ou senha incorretos."), 401
 
-    if not usuario:
+    tipo, usuario = usuarios[0]
+    if usuario[2] and not check_password_hash(usuario[2], senha):
+        return jsonify(erro="E-mail/telefone ou senha incorretos."), 401
+
+    if not usuario[2]:
         telefone = re.sub(r"\D", "", identificador)
-        contas_sem_senha = [conta for conta in usuarios if not conta[2]]
-        if len(contas_sem_senha) == 1 and telefone == contas_sem_senha[0][3]:
-            conta = contas_sem_senha[0]
+        if telefone == usuario[3]:
             if len(senha) < 6 or len(senha) > 128:
                 return jsonify(erro="Defina uma senha com 6 a 128 caracteres."), 400
             with sqlite3.connect(DB_PATH) as db:
                 db.execute(
-                    f"UPDATE {tabela} SET senha_hash = ? WHERE id = ?",
-                    (generate_password_hash(senha), conta[0]),
+                    f"UPDATE {TABELAS[tipo]} SET senha_hash = ? WHERE id = ?",
+                    (generate_password_hash(senha), usuario[0]),
                 )
-            usuario = conta
-        elif contas_sem_senha and EMAIL_RE.fullmatch(identificador.lower()):
+        elif EMAIL_RE.fullmatch(identificador.lower()):
             return jsonify(erro="No primeiro acesso, use o telefone cadastrado para definir sua senha."), 401
         else:
             return jsonify(erro="E-mail/telefone ou senha incorretos."), 401
@@ -311,6 +306,49 @@ def login():
     session["nome"] = usuario[1]
     session["administrador"] = tipo == "barbeiros" and usuario[4] == ADMIN_EMAIL
     return jsonify(ok=True)
+
+
+@app.post("/api/contas/<tipo>")
+def criar_conta_administrador(tipo):
+    if not exigir_administrador():
+        return jsonify(erro="Apenas a conta administradora pode cadastrar contas."), 403
+
+    tabela = TABELAS.get(tipo)
+    if not tabela:
+        return jsonify(erro="Tipo de conta inválido."), 404
+
+    dados, erros = validar(request.get_json(silent=True) or {}, tipo=tipo)
+    if dados["telefone"] == ADMIN_TELEFONE:
+        erros["telefone"] = "Este telefone é reservado para a conta administradora."
+    if dados["email"] == ADMIN_EMAIL:
+        erros["email"] = "Este e-mail é reservado para a conta administradora."
+    if erros:
+        return jsonify(erros=erros), 400
+
+    try:
+        with sqlite3.connect(DB_PATH) as db:
+            db.execute("BEGIN IMMEDIATE")
+            for tabela_existente in TABELAS.values():
+                if db.execute(
+                    f"SELECT 1 FROM {tabela_existente} WHERE lower(email) = ? LIMIT 1",
+                    (dados["email"],),
+                ).fetchone():
+                    erros["email"] = "Este e-mail já está cadastrado."
+                if db.execute(
+                    f"SELECT 1 FROM {tabela_existente} WHERE telefone = ? LIMIT 1",
+                    (dados["telefone"],),
+                ).fetchone():
+                    erros["telefone"] = "Este telefone já está cadastrado."
+            if erros:
+                return jsonify(erros=erros), 409
+            cursor = db.execute(
+                f"INSERT INTO {tabela} (nome, email, telefone) VALUES (?, ?, ?)",
+                (dados["nome"], dados["email"], dados["telefone"]),
+            )
+    except sqlite3.IntegrityError:
+        return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409
+
+    return jsonify(ok=True, id=cursor.lastrowid), 201
 
 
 @app.get("/api/sessao")

@@ -19,11 +19,7 @@
   <main class="conteudo">
     <section id="tela-cadastro" class="painel painel-formulario" aria-labelledby="titulo-cadastro">
       <h2 id="titulo-cadastro">Crie seu cadastro</h2>
-      <p class="texto-introdutorio">Escolha seu perfil para acessar a Fade House.</p>
-      <div class="seletor-perfil" role="group" aria-label="Tipo de cadastro">
-        <button class="perfil-selecionado" type="button" data-perfil="clientes" aria-pressed="true">Cliente</button>
-        <button type="button" data-perfil="barbeiros" aria-pressed="false">Barbeiro</button>
-      </div>
+      <p class="texto-introdutorio">Informe seus dados para criar uma conta de cliente.</p>
       <form id="form-cadastro">
         <div class="campos-formulario">
           <div class="campo campo-completo">
@@ -53,7 +49,7 @@
           </div>
         </div>
         <p id="mensagem-cadastro" class="mensagem" aria-live="polite"></p>
-        <button id="botao-cadastro" class="botao-principal" type="submit">Cadastrar como cliente</button>
+        <button id="botao-cadastro" class="botao-principal" type="submit">Criar conta</button>
       </form>
       <p class="alternativa-acesso">Já tem cadastro? <button id="abrir-login" class="link-alternativo" type="button">Entrar</button></p>
     </section>
@@ -61,10 +57,6 @@
     <section id="tela-login" class="painel painel-formulario" aria-labelledby="titulo-login" hidden>
       <h2 id="titulo-login">Acesse sua conta</h2>
       <p class="texto-introdutorio">Entre com os dados usados no cadastro.</p>
-      <div class="seletor-perfil" role="group" aria-label="Tipo de conta para entrar">
-        <button class="perfil-selecionado" type="button" data-login-perfil="clientes" aria-pressed="true">Cliente</button>
-        <button type="button" data-login-perfil="barbeiros" aria-pressed="false">Barbeiro</button>
-      </div>
       <form id="form-login">
         <div class="campos-formulario">
           <div class="campo campo-completo">
@@ -109,18 +101,36 @@
           <div id="lista-proximos-agendamentos" class="lista-proximos-agendamentos"></div>
         </section>
       </section>
-      <section id="painel-solicitacoes-barbeiros" class="painel" aria-labelledby="titulo-solicitacoes-barbeiros" hidden>
-        <div class="cabecalho-painel">
-          <h2 id="titulo-solicitacoes-barbeiros">Solicitações de cadastro</h2>
-          <span id="total-solicitacoes-barbeiros" class="contador" aria-live="polite"></span>
-        </div>
-        <ul id="lista-solicitacoes-barbeiros" class="lista-servicos" aria-live="polite">
-          <li class="estado-lista">Carregando solicitações...</li>
-        </ul>
-      </section>
       <section id="painel-contas-administrador" class="painel" aria-labelledby="titulo-contas-administrador" hidden>
         <h2 id="titulo-contas-administrador">Contas cadastradas</h2>
         <p id="mensagem-contas-administrador" class="mensagem" aria-live="polite"></p>
+        <form id="form-conta-administrador">
+          <div class="campos-formulario">
+            <div class="campo campo-completo">
+              <label for="tipo-conta-administrador">Tipo de conta</label>
+              <select id="tipo-conta-administrador" name="tipo" required>
+                <option value="clientes">Cliente</option>
+                <option value="barbeiros">Barbeiro</option>
+              </select>
+            </div>
+            <div class="campo campo-completo">
+              <label for="nome-conta-administrador">Nome completo</label>
+              <input id="nome-conta-administrador" name="nome" type="text" autocomplete="name" required>
+              <span class="erro" data-erro="nome"></span>
+            </div>
+            <div class="campo">
+              <label for="telefone-conta-administrador">Número de telefone</label>
+              <input id="telefone-conta-administrador" name="telefone" type="tel" autocomplete="tel" inputmode="numeric" required>
+              <span class="erro" data-erro="telefone"></span>
+            </div>
+            <div class="campo">
+              <label for="email-conta-administrador">E-mail</label>
+              <input id="email-conta-administrador" name="email" type="email" autocomplete="email" required>
+              <span class="erro" data-erro="email"></span>
+            </div>
+          </div>
+          <button id="botao-criar-conta" class="botao-principal" type="submit">Cadastrar conta</button>
+        </form>
         <div class="abas-contas" role="tablist" aria-label="Tipo de conta">
           <button id="aba-contas-clientes" class="aba-conta selecionada" type="button" role="tab" aria-selected="true" aria-controls="grupo-contas-clientes" data-aba-contas="clientes">Clientes</button>
           <button id="aba-contas-barbeiros" class="aba-conta" type="button" role="tab" aria-selected="false" aria-controls="grupo-contas-barbeiros" data-aba-contas="barbeiros" tabindex="-1">Barbeiros</button>
@@ -279,6 +289,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=service-duration-2"></script>
+  <script src="app.js?v=role-based-login-1"></script>
 </body>
 </html>

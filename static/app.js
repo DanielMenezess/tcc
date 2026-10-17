@@ -6,6 +6,8 @@ const total = document.getElementById("total-servicos");
 const mensagemServico = document.getElementById("mensagem");
 const mensagemCadastro = document.getElementById("mensagem-cadastro");
 const mensagemLogin = document.getElementById("mensagem-login");
+const formContaAdministrador = document.getElementById("form-conta-administrador");
+const botaoCriarConta = document.getElementById("botao-criar-conta");
 const campoNomeCadastro = document.getElementById("cadastro-nome");
 const campoTelefone = document.getElementById("cadastro-telefone");
 const botaoAdicionar = document.getElementById("adicionar");
@@ -27,9 +29,6 @@ const painelProximoAgendamento = document.getElementById("painel-proximo-agendam
 const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
 const listaProximosAgendamentos = document.getElementById("lista-proximos-agendamentos");
 const painelAdicionar = document.getElementById("painel-adicionar");
-const painelSolicitacoesBarbeiros = document.getElementById("painel-solicitacoes-barbeiros");
-const listaSolicitacoesBarbeiros = document.getElementById("lista-solicitacoes-barbeiros");
-const totalSolicitacoesBarbeiros = document.getElementById("total-solicitacoes-barbeiros");
 const painelContasAdministrador = document.getElementById("painel-contas-administrador");
 const mensagemContasAdministrador = document.getElementById("mensagem-contas-administrador");
 const listaContasClientes = document.getElementById("lista-contas-clientes");
@@ -81,11 +80,8 @@ const paineisNavegacao = [
   painelAgendaBarbeiro,
   painelAdicionar,
   painelHistoricoServicos,
-  painelSolicitacoesBarbeiros,
   painelContasAdministrador,
 ];
-const seletorPerfil = Array.from(document.querySelectorAll("[data-perfil]"));
-const seletorPerfilLogin = Array.from(document.querySelectorAll("[data-login-perfil]"));
 const formatarPreco = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
@@ -94,9 +90,6 @@ const formatarPrecoComCentavos = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-const nomeBarbeiroValido = /^[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ ]*$/;
-let perfilSelecionado = "clientes";
-let perfilLoginSelecionado = "clientes";
 let tipoUsuario = null;
 let administradorUsuario = false;
 let servicoSelecionadoId = null;
@@ -348,7 +341,7 @@ function paineisDaAba(tipo) {
   }
   if (tipo === "servicos") return [painelAgendarCliente, painelAdicionar];
   if (tipo === "administracao") {
-    return [painelSolicitacoesBarbeiros, painelContasAdministrador, painelHistoricoServicos];
+    return [painelContasAdministrador, painelHistoricoServicos];
   }
   return [painelHistoricoServicos];
 }
@@ -437,7 +430,6 @@ function mostrarServicos(usuario) {
   painelAgendamentosPendentes.hidden = tipoUsuario !== "barbeiros";
   painelAgendamentosAConcluir.hidden = tipoUsuario !== "barbeiros";
   painelAdicionar.hidden = tipoUsuario !== "barbeiros";
-  painelSolicitacoesBarbeiros.hidden = !usuario.administrador;
   painelContasAdministrador.hidden = !usuario.administrador;
   painelAgendaBarbeiro.hidden = tipoUsuario !== "barbeiros";
   painelHistoricoServicos.hidden = tipoUsuario !== "barbeiros";
@@ -489,7 +481,6 @@ function mostrarServicos(usuario) {
       : "Meu histórico de serviços";
     carregarHistoricoServicos();
     if (usuario.administrador) {
-      carregarSolicitacoesBarbeiros();
       carregarContasAdministrador();
     }
   }
@@ -962,72 +953,6 @@ async function carregarContasAdministrador() {
   }
 }
 
-function renderizarSolicitacoesBarbeiros(solicitacoes) {
-  listaSolicitacoesBarbeiros.replaceChildren();
-  totalSolicitacoesBarbeiros.textContent = `${solicitacoes.length} ${solicitacoes.length === 1 ? "solicitação" : "solicitações"}`;
-
-  if (solicitacoes.length === 0) {
-    const vazio = document.createElement("li");
-    vazio.className = "estado-lista";
-    vazio.textContent = "Não há solicitações pendentes.";
-    listaSolicitacoesBarbeiros.append(vazio);
-    return;
-  }
-
-  solicitacoes.forEach((solicitacao) => {
-    const item = document.createElement("li");
-    item.className = "servico";
-    const informacoes = document.createElement("div");
-    informacoes.className = "servico-info";
-    const nome = document.createElement("strong");
-    nome.textContent = solicitacao.nome;
-    const contato = document.createElement("span");
-    contato.className = "servico-detalhe";
-    contato.textContent = ` · ${solicitacao.email} · ${formatarTelefone(solicitacao.telefone)}`;
-    informacoes.append(nome, contato);
-
-    const acoes = document.createElement("div");
-    acoes.className = "acoes-solicitacao";
-    const aprovar = document.createElement("button");
-    aprovar.type = "button";
-    aprovar.className = "botao-aprovar";
-    aprovar.dataset.acao = "aprovar";
-    aprovar.dataset.id = solicitacao.id;
-    aprovar.textContent = "Aprovar";
-    const recusar = document.createElement("button");
-    recusar.type = "button";
-    recusar.className = "botao-recusar";
-    recusar.dataset.acao = "recusar";
-    recusar.dataset.id = solicitacao.id;
-    recusar.textContent = "Recusar";
-    acoes.append(aprovar, recusar);
-    item.append(informacoes, acoes);
-    listaSolicitacoesBarbeiros.append(item);
-  });
-}
-
-async function carregarSolicitacoesBarbeiros() {
-  listaSolicitacoesBarbeiros.replaceChildren();
-  const carregando = document.createElement("li");
-  carregando.className = "estado-lista";
-  carregando.textContent = "Carregando solicitações...";
-  listaSolicitacoesBarbeiros.append(carregando);
-  totalSolicitacoesBarbeiros.textContent = "";
-
-  try {
-    const resposta = await fetch("/api/solicitacoes-barbeiros");
-    const corpo = await resposta.json();
-    if (!resposta.ok) throw new Error(corpo.erro || "Falha ao carregar solicitações.");
-    renderizarSolicitacoesBarbeiros(corpo.solicitacoes);
-  } catch {
-    totalSolicitacoesBarbeiros.textContent = "";
-    const erro = document.createElement("li");
-    erro.className = "estado-lista";
-    erro.textContent = "Não foi possível carregar as solicitações. Tente novamente.";
-    listaSolicitacoesBarbeiros.replaceChildren(erro);
-  }
-}
-
 function renderizarAgendamentosBarbeiro(agendamentos) {
   listaAgendamentos.replaceChildren();
   totalAgendamentos.textContent = `${agendamentos.length} ${agendamentos.length === 1 ? "agendamento" : "agendamentos"}`;
@@ -1082,20 +1007,6 @@ async function carregarAgendamentosBarbeiro(proximaData = false) {
   }
 }
 
-seletorPerfil.forEach((botao) => {
-  botao.addEventListener("click", () => {
-    perfilSelecionado = botao.dataset.perfil;
-    seletorPerfil.forEach((item) => {
-      const selecionado = item === botao;
-      item.classList.toggle("perfil-selecionado", selecionado);
-      item.setAttribute("aria-pressed", String(selecionado));
-    });
-    botaoCadastro.textContent = perfilSelecionado === "clientes"
-      ? "Cadastrar como cliente"
-      : "Solicitar cadastro";
-  });
-});
-
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
 campoDataAgendaBarbeiro.addEventListener("change", () => carregarAgendamentosBarbeiro());
@@ -1142,17 +1053,6 @@ campoDataAgendamento.addEventListener("change", () => {
   carregarDisponibilidadeHorarios();
   selecaoAgendamentoAlterada();
 });
-seletorPerfilLogin.forEach((botao) => {
-  botao.addEventListener("click", () => {
-    perfilLoginSelecionado = botao.dataset.loginPerfil;
-    seletorPerfilLogin.forEach((item) => {
-      const selecionado = item === botao;
-      item.classList.toggle("perfil-selecionado", selecionado);
-      item.setAttribute("aria-pressed", String(selecionado));
-    });
-  });
-});
-
 function exibirEstado(texto) {
   lista.replaceChildren();
   const item = document.createElement("li");
@@ -1333,27 +1233,14 @@ formCadastro.addEventListener("submit", async (evento) => {
   botaoCadastro.disabled = true;
 
   const dados = Object.fromEntries(new FormData(formCadastro));
-  const nome = String(dados.nome || "").trim();
-
   if (dados.senha !== dados.confirmar_senha) {
     mostrarErros(formCadastro, { confirmar_senha: "As senhas não coincidem." });
     botaoCadastro.disabled = false;
     return;
   }
 
-  if (perfilSelecionado === "barbeiros" && !nomeBarbeiroValido.test(nome)) {
-    mensagemCadastro.textContent = "Use letras maiúsculas no início de cada nome e evite números ou símbolos.";
-    mensagemCadastro.className = "mensagem erro";
-    const campo = formCadastro.elements.nome;
-    campo.classList.add("invalido");
-    const detalhe = formCadastro.querySelector('[data-erro="nome"]');
-    if (detalhe) detalhe.textContent = "Use letras maiúsculas no início de cada nome e evite números ou símbolos.";
-    botaoCadastro.disabled = false;
-    return;
-  }
-
   try {
-    const resposta = await fetch(`/api/${perfilSelecionado}`, {
+    const resposta = await fetch("/api/clientes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dados),
@@ -1367,12 +1254,6 @@ formCadastro.addEventListener("submit", async (evento) => {
     }
 
     formCadastro.reset();
-    if (perfilSelecionado === "barbeiros") {
-      mensagemCadastro.textContent = "Solicitação enviada ao administrador. Você poderá entrar após a aprovação.";
-      mensagemCadastro.classList.add("sucesso");
-      return;
-    }
-
     const sessao = await fetch("/api/sessao");
     const usuario = await sessao.json();
     mostrarServicos(usuario);
@@ -1383,26 +1264,38 @@ formCadastro.addEventListener("submit", async (evento) => {
   }
 });
 
-listaSolicitacoesBarbeiros.addEventListener("click", async (evento) => {
-  const botao = evento.target.closest("[data-acao][data-id]");
-  if (!botao) return;
+formContaAdministrador.addEventListener("submit", async (evento) => {
+  evento.preventDefault();
+  limparErros(formContaAdministrador);
+  mensagemContasAdministrador.textContent = "";
+  mensagemContasAdministrador.className = "mensagem";
+  botaoCriarConta.disabled = true;
 
-  const item = botao.closest(".servico");
-  item.querySelectorAll("button").forEach((acao) => {
-    acao.disabled = true;
-  });
-  const endpoint = `/api/solicitacoes-barbeiros/${botao.dataset.id}`;
+  const dados = Object.fromEntries(new FormData(formContaAdministrador));
+  const tipo = dados.tipo;
+  delete dados.tipo;
+
   try {
-    const resposta = await fetch(
-      botao.dataset.acao === "aprovar" ? `${endpoint}/aprovar` : endpoint,
-      { method: botao.dataset.acao === "aprovar" ? "POST" : "DELETE" },
-    );
-    if (!resposta.ok) throw new Error("Não foi possível atualizar a solicitação.");
-    await carregarSolicitacoesBarbeiros();
-  } catch {
-    item.querySelectorAll("button").forEach((acao) => {
-      acao.disabled = false;
+    const resposta = await fetch(`/api/contas/${tipo}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
     });
+    const corpo = await resposta.json();
+    if (!resposta.ok) {
+      if (corpo.erros) mostrarErros(formContaAdministrador, corpo.erros);
+      else mensagemContasAdministrador.textContent = corpo.erro || "Não foi possível cadastrar a conta.";
+      return;
+    }
+
+    formContaAdministrador.reset();
+    mensagemContasAdministrador.textContent = "Conta cadastrada.";
+    mensagemContasAdministrador.classList.add("sucesso");
+    await carregarContasAdministrador();
+  } catch {
+    mensagemContasAdministrador.textContent = "Sem conexão com o servidor. Tente novamente.";
+  } finally {
+    botaoCriarConta.disabled = false;
   }
 });
 
@@ -1437,7 +1330,6 @@ formLogin.addEventListener("submit", async (evento) => {
   botaoLogin.disabled = true;
 
   const dados = Object.fromEntries(new FormData(formLogin));
-  dados.tipo = perfilLoginSelecionado;
   try {
     const resposta = await fetch("/api/login", {
       method: "POST",

@@ -14,6 +14,25 @@ def entrar_administrador(cliente):
     )
 
 
+def cadastrar_conta_administrador(administrador, tipo, nome, email, telefone):
+    return administrador.post(
+        f"/api/contas/{tipo}",
+        json={"nome": nome, "email": email, "telefone": telefone},
+    )
+
+
+def entrar_barbeiro_por_email(cliente, email, telefone, senha="senha-segura-123"):
+    primeiro_acesso = cliente.post(
+        "/api/login", json={"identificador": telefone, "senha": senha}
+    )
+    if primeiro_acesso.status_code != 200:
+        return primeiro_acesso
+    cliente.post("/api/sair")
+    return cliente.post(
+        "/api/login", json={"identificador": email, "senha": senha}
+    )
+
+
 def testar_migracao_mantem_agendamentos_antigos_confirmados(tmp_path, monkeypatch):
     caminho_db = tmp_path / "fadehouse.db"
     monkeypatch.setattr(app_module, "DB_PATH", caminho_db)
@@ -135,25 +154,29 @@ def testar_telefone_administrador_nao_pode_ser_usado_por_outra_conta(tmp_path, m
     app_module.init_db()
     cliente = app_module.app.test_client()
 
-    for tipo, email in (
-        ("clientes", "cliente@teste.com"),
-        ("barbeiros", "barbeiro@teste.com"),
-    ):
-        resposta = cliente.post(
-            f"/api/{tipo}",
-            json={
-                "nome": "Maria da Silva" if tipo == "clientes" else "João da Silva",
-                "email": email,
-                "telefone": "(11) 11111-1111",
-                "senha": "senha-segura-123",
-                "confirmar_senha": "senha-segura-123",
-            },
-        )
-        assert resposta.status_code == 400
-        assert "telefone" in resposta.json["erros"]
+    resposta_cliente = cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria da Silva",
+            "email": "cliente@teste.com",
+            "telefone": "(11) 11111-1111",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    assert resposta_cliente.status_code == 400
+    assert "telefone" in resposta_cliente.json["erros"]
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    resposta_barbeiro = cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "barbeiro@teste.com", "(11) 11111-1111"
+    )
+    assert resposta_barbeiro.status_code == 400
+    assert "telefone" in resposta_barbeiro.json["erros"]
 
 
-def testar_solicitacao_barbeiro_exige_aprovacao_administrativa(tmp_path, monkeypatch):
+def testar_cadastro_de_barbeiro_e_login_sao_administrativos(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
     barbeiro = app_module.app.test_client()
@@ -168,24 +191,38 @@ def testar_solicitacao_barbeiro_exige_aprovacao_administrativa(tmp_path, monkeyp
             "confirmar_senha": "senha-segura-123",
         },
     )
-    assert resposta.status_code == 202
+    assert resposta.status_code == 403
     assert barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
-    ).status_code == 401
-    assert barbeiro.get("/api/solicitacoes-barbeiros").status_code == 403
-    assert barbeiro.post("/api/solicitacoes-barbeiros/1/aprovar").status_code == 403
+        "/api/contas/barbeiros",
+        json={"nome": "João da Silva", "email": "joao@teste.com", "telefone": "41911111111"},
+    ).status_code == 403
 
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
-    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
-    assert administrador.delete(
-        f"/api/solicitacoes-barbeiros/{solicitacao['id']}"
-    ).status_code == 204
-    assert barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
-    ).status_code == 401
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41911111111"
+    ).status_code == 201
+    assert cadastrar_conta_administrador(
+        administrador, "clientes", "Maria da Silva", "maria@teste.com", "41922222222"
+    ).status_code == 201
+    assert entrar_barbeiro_por_email(
+        barbeiro, "joao@teste.com", "41911111111"
+    ).status_code == 200
+    assert barbeiro.get("/api/sessao").json == {
+        "autenticado": True,
+        "tipo": "barbeiros",
+        "nome": "João da Silva",
+        "administrador": False,
+    }
+    cliente = app_module.app.test_client()
+    assert cliente.post(
+        "/api/login", json={"identificador": "41922222222", "senha": "senha-segura-123"}
+    ).status_code == 200
+    cliente.post("/api/sair")
+    assert cliente.post(
+        "/api/login", json={"identificador": "maria@teste.com", "senha": "senha-segura-123"}
+    ).status_code == 200
+    assert cliente.get("/api/sessao").json["tipo"] == "clientes"
 
 
 def testar_administrador_lista_contas_separadas_sem_hashes(tmp_path, monkeypatch):
@@ -204,23 +241,11 @@ def testar_administrador_lista_contas_separadas_sem_hashes(tmp_path, monkeypatch
             "confirmar_senha": "senha-segura-123",
         },
     )
-    assert barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41922222222",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    ).status_code == 202
-
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
-    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
-    assert administrador.post(
-        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-    ).status_code == 200
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41922222222"
+    ).status_code == 201
 
     assert cliente.get("/api/contas").status_code == 403
     contas = administrador.get("/api/contas")
@@ -254,24 +279,12 @@ def testar_administrador_exclui_contas_e_revoga_sessoes(tmp_path, monkeypatch):
             "confirmar_senha": "senha-segura-123",
         },
     )
-    barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41922222222",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
     assert entrar_administrador(administrador).status_code == 200
-    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
-    assert administrador.post(
-        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-    ).status_code == 200
-    assert barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41922222222"
+    ).status_code == 201
+    assert entrar_barbeiro_por_email(
+        barbeiro, "joao@teste.com", "41922222222"
     ).status_code == 200
 
     contas = administrador.get("/api/contas").json
@@ -342,9 +355,9 @@ def testar_email_e_telefone_nao_podem_ser_reutilizados_entre_perfis(tmp_path, mo
     app_module.init_db()
     cliente = app_module.app.test_client()
 
-    def cadastrar(perfil, nome, email, telefone):
+    def cadastrar(nome, email, telefone):
         return cliente.post(
-            f"/api/{perfil}",
+            "/api/clientes",
             json={
                 "nome": nome,
                 "email": email,
@@ -354,22 +367,34 @@ def testar_email_e_telefone_nao_podem_ser_reutilizados_entre_perfis(tmp_path, mo
             },
         )
 
-    assert cadastrar("clientes", "Maria da Silva", "cliente@teste.com", "41911111111").status_code == 201
-    assert cadastrar("barbeiros", "João da Silva", "barbeiro@teste.com", "41922222222").status_code == 202
+    assert cadastrar("Maria da Silva", "cliente@teste.com", "41911111111").status_code == 201
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "barbeiro@teste.com", "41922222222"
+    ).status_code == 201
 
-    email_de_cliente = cadastrar("barbeiros", "Pedro da Silva", "cliente@teste.com", "41933333333")
+    email_de_cliente = cadastrar_conta_administrador(
+        administrador, "barbeiros", "Pedro da Silva", "cliente@teste.com", "41933333333"
+    )
     assert email_de_cliente.status_code == 409
     assert "email" in email_de_cliente.json["erros"]
 
-    telefone_de_cliente = cadastrar("barbeiros", "Pedro da Silva", "pedro@teste.com", "41911111111")
+    telefone_de_cliente = cadastrar_conta_administrador(
+        administrador, "barbeiros", "Pedro da Silva", "pedro@teste.com", "41911111111"
+    )
     assert telefone_de_cliente.status_code == 409
     assert "telefone" in telefone_de_cliente.json["erros"]
 
-    email_de_barbeiro = cadastrar("clientes", "Ana da Silva", "barbeiro@teste.com", "41944444444")
+    email_de_barbeiro = cadastrar_conta_administrador(
+        administrador, "clientes", "Ana da Silva", "barbeiro@teste.com", "41944444444"
+    )
     assert email_de_barbeiro.status_code == 409
     assert "email" in email_de_barbeiro.json["erros"]
 
-    telefone_de_barbeiro = cadastrar("clientes", "Ana da Silva", "ana@teste.com", "41922222222")
+    telefone_de_barbeiro = cadastrar_conta_administrador(
+        administrador, "clientes", "Ana da Silva", "ana@teste.com", "41922222222"
+    )
     assert telefone_de_barbeiro.status_code == 409
     assert "telefone" in telefone_de_barbeiro.json["erros"]
 
@@ -513,7 +538,6 @@ def testar_conclusao_do_servico_move_agendamento_para_historico(tmp_path, monkey
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
     cliente = app_module.app.test_client()
-    solicitante = app_module.app.test_client()
     barbeiro = app_module.app.test_client()
     administrador = app_module.app.test_client()
 
@@ -527,24 +551,12 @@ def testar_conclusao_do_servico_move_agendamento_para_historico(tmp_path, monkey
             "confirmar_senha": "senha-segura-123",
         },
     ).status_code == 201
-    assert solicitante.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41922222222",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    ).status_code == 202
     assert entrar_administrador(administrador).status_code == 200
-    solicitacao = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"][0]
-    assert administrador.post(
-        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-    ).status_code == 200
-    assert barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41922222222"
+    ).status_code == 201
+    assert entrar_barbeiro_por_email(
+        barbeiro, "joao@teste.com", "41922222222"
     ).status_code == 200
 
     ontem = (date.today() - timedelta(days=1)).isoformat()
@@ -653,43 +665,19 @@ def testar_barbeiro_consulta_apenas_sua_agenda_na_data_escolhida(tmp_path, monke
     barbeiro = app_module.app.test_client()
     outro_barbeiro = app_module.app.test_client()
     cliente = app_module.app.test_client()
-
-    resposta_solicitacao = barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41911111111",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
-    resposta_outra_solicitacao = outro_barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "Carlos Souza",
-            "email": "carlos@teste.com",
-            "telefone": "41922222222",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
-    assert resposta_solicitacao.status_code == 202
-    assert resposta_outra_solicitacao.status_code == 202
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
-    solicitacoes = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
-    for solicitacao in solicitacoes:
-        assert administrador.post(
-            f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-        ).status_code == 200
-    assert barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41911111111"
+    ).status_code == 201
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "Carlos Souza", "carlos@teste.com", "41922222222"
+    ).status_code == 201
+    assert entrar_barbeiro_por_email(
+        barbeiro, "joao@teste.com", "41911111111"
     ).status_code == 200
-    assert outro_barbeiro.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "carlos@teste.com", "senha": "senha-segura-123"},
+    assert entrar_barbeiro_por_email(
+        outro_barbeiro, "carlos@teste.com", "41922222222"
     ).status_code == 200
     cliente.post(
         "/api/clientes",
@@ -773,40 +761,18 @@ def testar_historico_mostra_servicos_passados_apenas_do_barbeiro_ou_de_todos_par
     barbeiro = app_module.app.test_client()
     outro_barbeiro = app_module.app.test_client()
     cliente = app_module.app.test_client()
-
-    barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41911111111",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
-    outro_barbeiro.post(
-        "/api/barbeiros",
-        json={
-            "nome": "Carlos Souza",
-            "email": "carlos@teste.com",
-            "telefone": "41922222222",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
-    solicitacoes = administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
-    for solicitacao in solicitacoes:
-        assert administrador.post(
-            f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-        ).status_code == 200
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41911111111"
+    ).status_code == 201
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "Carlos Souza", "carlos@teste.com", "41922222222"
+    ).status_code == 201
 
     for sessao, email in ((barbeiro, "joao@teste.com"), (outro_barbeiro, "carlos@teste.com")):
-        assert sessao.post(
-            "/api/login",
-            json={"tipo": "barbeiros", "identificador": email, "senha": "senha-segura-123"},
-        ).status_code == 200
+        telefone = "41911111111" if email == "joao@teste.com" else "41922222222"
+        assert entrar_barbeiro_por_email(sessao, email, telefone).status_code == 200
 
     cliente.post(
         "/api/clientes",
@@ -986,41 +952,28 @@ def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch
     monkeypatch.setattr(app_module, "DB_PATH", tmp_path / "fadehouse.db")
     app_module.init_db()
     cliente = app_module.app.test_client()
-    resposta_cadastro = cliente.post(
-        "/api/barbeiros",
-        json={
-            "nome": "João da Silva",
-            "email": "joao@teste.com",
-            "telefone": "41999999999",
-            "senha": "senha-segura-123",
-            "confirmar_senha": "senha-segura-123",
-        },
-    )
-    assert resposta_cadastro.status_code == 202
-
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
-    solicitacao = next(
-        item for item in administrador.get("/api/solicitacoes-barbeiros").json["solicitacoes"]
-        if item["email"] == "joao@teste.com"
-    )
-    assert administrador.post(
-        f"/api/solicitacoes-barbeiros/{solicitacao['id']}/aprovar"
-    ).status_code == 200
+    assert cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41999999999"
+    ).status_code == 201
 
     with app_module.sqlite3.connect(app_module.DB_PATH) as db:
         senha_hash = db.execute(
             "SELECT senha_hash FROM barbeiro WHERE email = ?", ("joao@teste.com",)
         ).fetchone()[0]
-    assert senha_hash != "senha-segura-123"
+    assert senha_hash is None
 
-    cliente.post("/api/sair")
-    resposta_login = cliente.post(
-        "/api/login",
-        json={"tipo": "barbeiros", "identificador": "joao@teste.com", "senha": "senha-segura-123"},
+    resposta_login = entrar_barbeiro_por_email(
+        cliente, "joao@teste.com", "41999999999"
     )
     assert resposta_login.status_code == 200
     assert cliente.get("/api/sessao").json["tipo"] == "barbeiros"
+    with app_module.sqlite3.connect(app_module.DB_PATH) as db:
+        senha_hash = db.execute(
+            "SELECT senha_hash FROM barbeiro WHERE email = ?", ("joao@teste.com",)
+        ).fetchone()[0]
+    assert senha_hash != "senha-segura-123"
 
 
 def testar_cadastro_exige_senha(tmp_path, monkeypatch):
@@ -1150,22 +1103,26 @@ def testar_nome_de_conta_nao_aceita_numeros_em_nenhum_perfil(tmp_path, monkeypat
     app_module.init_db()
     cliente = app_module.app.test_client()
 
-    for tipo, nome, email in (
-        ("clientes", "Maria 2 Silva", "maria@teste.com"),
-        ("barbeiros", "João 2 Silva", "joao@teste.com"),
-    ):
-        resposta = cliente.post(
-            f"/api/{tipo}",
-            json={
-                "nome": nome,
-                "email": email,
-                "telefone": "41999999999" if tipo == "clientes" else "41988888888",
-                "senha": "senha-segura-123",
-                "confirmar_senha": "senha-segura-123",
-            },
-        )
-        assert resposta.status_code == 400
-        assert resposta.json["erros"]["nome"] == "O nome da conta não pode conter números."
+    resposta_cliente = cliente.post(
+        "/api/clientes",
+        json={
+            "nome": "Maria 2 Silva",
+            "email": "maria@teste.com",
+            "telefone": "41999999999",
+            "senha": "senha-segura-123",
+            "confirmar_senha": "senha-segura-123",
+        },
+    )
+    assert resposta_cliente.status_code == 400
+    assert resposta_cliente.json["erros"]["nome"] == "O nome da conta não pode conter números."
+
+    administrador = app_module.app.test_client()
+    assert entrar_administrador(administrador).status_code == 200
+    resposta_barbeiro = cadastrar_conta_administrador(
+        administrador, "barbeiros", "João 2 Silva", "joao@teste.com", "41988888888"
+    )
+    assert resposta_barbeiro.status_code == 400
+    assert resposta_barbeiro.json["erros"]["nome"] == "O nome da conta não pode conter números."
 
 
 def testar_nome_de_barbeiro_rejeita_minusculo_e_caracteres_invalidos():
