@@ -120,13 +120,18 @@
             </div>
             <div class="campo">
               <label for="telefone-conta-administrador">Número de telefone</label>
-              <input id="telefone-conta-administrador" name="telefone" type="tel" autocomplete="tel" inputmode="numeric" required>
+              <input id="telefone-conta-administrador" name="telefone" type="tel" autocomplete="tel" inputmode="numeric" maxlength="15" placeholder="(41) 99999-9999" required>
               <span class="erro" data-erro="telefone"></span>
             </div>
             <div class="campo">
               <label for="email-conta-administrador">E-mail</label>
               <input id="email-conta-administrador" name="email" type="email" autocomplete="email" required>
               <span class="erro" data-erro="email"></span>
+            </div>
+            <div class="campo campo-completo">
+              <label for="senha-conta-administrador">Senha</label>
+              <input id="senha-conta-administrador" name="senha" type="password" autocomplete="new-password" minlength="6" maxlength="128" required>
+              <span class="erro" data-erro="senha"></span>
             </div>
           </div>
           <button id="botao-criar-conta" class="botao-principal" type="submit">Cadastrar conta</button>

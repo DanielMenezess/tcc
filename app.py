@@ -317,7 +317,13 @@ def criar_conta_administrador(tipo):
     if not tabela:
         return jsonify(erro="Tipo de conta inválido."), 404
 
-    dados, erros = validar(request.get_json(silent=True) or {}, tipo=tipo)
+    entrada = request.get_json(silent=True) or {}
+    dados, erros = validar(entrada, tipo=tipo)
+    senha = str(entrada.get("senha", ""))
+    if len(senha) < 6:
+        erros["senha"] = "A senha deve ter pelo menos 6 caracteres."
+    elif len(senha) > 128:
+        erros["senha"] = "A senha deve ter no máximo 128 caracteres."
     if dados["telefone"] == ADMIN_TELEFONE:
         erros["telefone"] = "Este telefone é reservado para a conta administradora."
     if dados["email"] == ADMIN_EMAIL:
@@ -342,8 +348,13 @@ def criar_conta_administrador(tipo):
             if erros:
                 return jsonify(erros=erros), 409
             cursor = db.execute(
-                f"INSERT INTO {tabela} (nome, email, telefone) VALUES (?, ?, ?)",
-                (dados["nome"], dados["email"], dados["telefone"]),
+                f"INSERT INTO {tabela} (nome, email, telefone, senha_hash) VALUES (?, ?, ?, ?)",
+                (
+                    dados["nome"],
+                    dados["email"],
+                    dados["telefone"],
+                    generate_password_hash(senha),
+                ),
             )
     except sqlite3.IntegrityError:
         return jsonify(erros={"email": "Este e-mail já está cadastrado."}), 409

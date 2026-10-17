@@ -14,10 +14,12 @@ def entrar_administrador(cliente):
     )
 
 
-def cadastrar_conta_administrador(administrador, tipo, nome, email, telefone):
+def cadastrar_conta_administrador(
+    administrador, tipo, nome, email, telefone, senha="senha-segura-123"
+):
     return administrador.post(
         f"/api/contas/{tipo}",
-        json={"nome": nome, "email": email, "telefone": telefone},
+        json={"nome": nome, "email": email, "telefone": telefone, "senha": senha},
     )
 
 
@@ -199,6 +201,11 @@ def testar_cadastro_de_barbeiro_e_login_sao_administrativos(tmp_path, monkeypatc
 
     administrador = app_module.app.test_client()
     assert entrar_administrador(administrador).status_code == 200
+    senha_curta = cadastrar_conta_administrador(
+        administrador, "barbeiros", "João da Silva", "joao@teste.com", "41911111111", "12345"
+    )
+    assert senha_curta.status_code == 400
+    assert "senha" in senha_curta.json["erros"]
     assert cadastrar_conta_administrador(
         administrador, "barbeiros", "João da Silva", "joao@teste.com", "41911111111"
     ).status_code == 201
@@ -962,7 +969,7 @@ def testar_senha_e_armazenada_com_hash_e_login_de_barbeiro(tmp_path, monkeypatch
         senha_hash = db.execute(
             "SELECT senha_hash FROM barbeiro WHERE email = ?", ("joao@teste.com",)
         ).fetchone()[0]
-    assert senha_hash is None
+    assert app_module.check_password_hash(senha_hash, "senha-segura-123")
 
     resposta_login = entrar_barbeiro_por_email(
         cliente, "joao@teste.com", "41999999999"

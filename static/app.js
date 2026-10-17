@@ -9,7 +9,7 @@ const mensagemLogin = document.getElementById("mensagem-login");
 const formContaAdministrador = document.getElementById("form-conta-administrador");
 const botaoCriarConta = document.getElementById("botao-criar-conta");
 const campoNomeCadastro = document.getElementById("cadastro-nome");
-const campoTelefone = document.getElementById("cadastro-telefone");
+const camposTelefone = Array.from(document.querySelectorAll('input[type="tel"]'));
 const botaoAdicionar = document.getElementById("adicionar");
 const botaoCadastro = document.getElementById("botao-cadastro");
 const botaoLogin = document.getElementById("botao-login");
@@ -295,12 +295,14 @@ function posicaoDoCursor(texto, quantidadeDigitos) {
   return texto.length;
 }
 
-campoTelefone.addEventListener("input", () => {
-  const posicaoAtual = campoTelefone.selectionStart ?? campoTelefone.value.length;
-  const quantidadeDigitos = campoTelefone.value.slice(0, posicaoAtual).replace(/\D/g, "").length;
-  campoTelefone.value = formatarTelefone(campoTelefone.value);
-  const novaPosicao = posicaoDoCursor(campoTelefone.value, quantidadeDigitos);
-  campoTelefone.setSelectionRange(novaPosicao, novaPosicao);
+camposTelefone.forEach((campoTelefone) => {
+  campoTelefone.addEventListener("input", () => {
+    const posicaoAtual = campoTelefone.selectionStart ?? campoTelefone.value.length;
+    const quantidadeDigitos = campoTelefone.value.slice(0, posicaoAtual).replace(/\D/g, "").length;
+    campoTelefone.value = formatarTelefone(campoTelefone.value);
+    const novaPosicao = posicaoDoCursor(campoTelefone.value, quantidadeDigitos);
+    campoTelefone.setSelectionRange(novaPosicao, novaPosicao);
+  });
 });
 
 campoNomeCadastro.addEventListener("input", () => {
