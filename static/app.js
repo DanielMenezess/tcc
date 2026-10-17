@@ -18,6 +18,7 @@ const botaoTema = document.getElementById("botao-tema");
 const botoesTema = [botaoTema];
 const telaCadastro = document.getElementById("tela-cadastro");
 const telaLogin = document.getElementById("tela-login");
+const telaApresentacao = document.getElementById("tela-apresentacao");
 const telaServicos = document.getElementById("tela-servicos");
 const cabecalhoSite = document.querySelector(".cabecalho");
 const navegacaoUsuario = document.getElementById("navegacao-usuario");
@@ -323,14 +324,26 @@ function ocultarAreaServicos() {
 
 function mostrarCadastro() {
   ocultarAreaServicos();
+  document.body.classList.remove("pagina-apresentacao");
+  telaApresentacao.hidden = true;
   telaCadastro.hidden = false;
   telaLogin.hidden = true;
 }
 
 function mostrarLogin() {
   ocultarAreaServicos();
+  document.body.classList.remove("pagina-apresentacao");
+  telaApresentacao.hidden = true;
   telaCadastro.hidden = true;
   telaLogin.hidden = false;
+}
+
+function mostrarApresentacao() {
+  ocultarAreaServicos();
+  document.body.classList.add("pagina-apresentacao");
+  telaApresentacao.hidden = false;
+  telaCadastro.hidden = true;
+  telaLogin.hidden = true;
 }
 
 function paineisDaAba(tipo) {
@@ -422,6 +435,8 @@ function mostrarServicos(usuario) {
   tipoUsuario = usuario.tipo;
   administradorUsuario = usuario.administrador === true;
   const cliente = tipoUsuario === "clientes";
+  document.body.classList.remove("pagina-apresentacao");
+  telaApresentacao.hidden = true;
   telaCadastro.hidden = true;
   telaLogin.hidden = true;
   telaServicos.hidden = false;
@@ -1028,6 +1043,8 @@ async function carregarAgendamentosBarbeiro(proximaData = false) {
 
 document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
+document.getElementById("abrir-login-apresentacao").addEventListener("click", mostrarLogin);
+document.getElementById("abrir-cadastro-apresentacao").addEventListener("click", mostrarCadastro);
 campoDataAgendaBarbeiro.addEventListener("change", () => carregarAgendamentosBarbeiro());
 campoDataAgendamento.addEventListener("change", () => {
   const hoje = dataLocalAtual();
@@ -1510,9 +1527,9 @@ async function iniciar() {
     const resposta = await fetch("/api/sessao");
     const usuario = await resposta.json();
     if (usuario.autenticado) mostrarServicos(usuario);
-    else mostrarCadastro();
+    else mostrarApresentacao();
   } catch {
-    mostrarCadastro();
+    mostrarApresentacao();
   }
 }
 

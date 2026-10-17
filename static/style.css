@@ -89,9 +89,23 @@ body {
 }
 
 .marca {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: 12px;
   padding: 14px 28px 12px;
   padding-left: 12px;
+}
+
+.marca-logo {
+  display: block;
+  width: 44px;
+  height: 50px;
+  flex: 0 0 auto;
+}
+
+.marca-texto {
+  min-width: 0;
 }
 
 .marca h1 {
@@ -107,6 +121,222 @@ body {
   margin: 8px 0 0;
   color: var(--suave);
   font-size: 0.85rem;
+}
+
+.conteudo-apresentacao {
+  width: min(1240px, calc(100% - 48px));
+  margin-top: 0;
+}
+
+.pagina-apresentacao {
+  min-height: 100vh;
+  background: var(--fundo);
+  color: var(--texto);
+}
+
+.pagina-apresentacao .cabecalho {
+  padding-inline: max(24px, calc((100vw - 1240px) / 2));
+  background: var(--painel);
+  border-bottom-color: var(--linha);
+}
+
+.pagina-apresentacao .marca h1 {
+  color: var(--texto);
+}
+
+.pagina-apresentacao .marca p {
+  color: var(--suave);
+}
+
+.pagina-apresentacao #botao-tema {
+  border-color: var(--item-linha);
+  color: var(--azul-escuro);
+}
+
+.pagina-apresentacao #botao-tema:hover {
+  background: var(--item-hover);
+  border-color: var(--azul);
+}
+
+.pagina-apresentacao .conteudo-apresentacao {
+  width: min(1240px, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+.tela-apresentacao[hidden] {
+  display: none;
+}
+
+.capa-apresentacao {
+  position: relative;
+  display: flex;
+  min-height: min(720px, calc(100vh - 76px));
+  align-items: center;
+  padding: clamp(40px, 8vw, 108px);
+  overflow: hidden;
+  background-color: #18324e;
+  background-image:
+    linear-gradient(90deg, rgba(18, 42, 66, 0.92) 0%, rgba(18, 42, 66, 0.74) 38%, rgba(18, 42, 66, 0.12) 100%),
+    linear-gradient(0deg, rgba(18, 42, 66, 0.62), transparent 45%),
+    url("fachada-fade-house.png");
+  background-position: center;
+  background-size: cover;
+  border-bottom: 1px solid var(--linha);
+}
+
+.conteudo-capa {
+  width: min(560px, 100%);
+  padding-bottom: 42px;
+}
+
+.sobretitulo-apresentacao {
+  margin: 0 0 18px;
+  color: #b9daf6;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.conteudo-capa h2 {
+  margin: 0;
+  color: #ffffff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 5rem;
+  font-weight: 500;
+  line-height: 0.96;
+}
+
+.frase-apresentacao {
+  margin: 24px 0 0;
+  color: #b9daf6;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.resumo-apresentacao {
+  max-width: 470px;
+  margin: 14px 0 0;
+  color: #e5edf5;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.acoes-apresentacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.botao-apresentacao {
+  min-height: 48px;
+  padding: 0 18px;
+  background: rgba(18, 42, 66, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 3px;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.botao-apresentacao:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.botao-apresentacao-principal {
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #ffffff;
+}
+
+.botao-apresentacao-principal:hover {
+  background: var(--azul-hover);
+}
+
+.endereco-apresentacao {
+  position: absolute;
+  right: 48px;
+  bottom: 28px;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.endereco-apresentacao span {
+  color: #b9daf6;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.historia-apresentacao {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 70px;
+  padding: clamp(44px, 7vw, 88px) clamp(24px, 8vw, 108px);
+  background: var(--painel);
+}
+
+.texto-historia h2 {
+  margin: 0;
+  color: var(--texto);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.texto-historia > p:not(.sobretitulo-apresentacao) {
+  max-width: 660px;
+  margin: 18px 0 0;
+  color: var(--suave);
+  font-size: 0.98rem;
+  line-height: 1.8;
+}
+
+.marcos-apresentacao {
+  display: grid;
+  align-content: center;
+  border-top: 1px solid var(--linha);
+}
+
+.marco-apresentacao {
+  display: grid;
+  gap: 5px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.marco-apresentacao strong {
+  color: var(--azul-escuro);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.6rem;
+  font-weight: 500;
+}
+
+.marco-apresentacao span {
+  color: var(--suave);
+  font-size: 0.86rem;
+}
+
+.rodape-apresentacao {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px clamp(24px, 8vw, 108px);
+  background: var(--fundo-secundario);
+  color: var(--azul-escuro);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.rodape-apresentacao span {
+  color: var(--suave);
+  font-weight: 600;
 }
 
 .navegacao {
@@ -984,6 +1214,72 @@ body {
     margin-right: 24px;
     padding-inline: 8px;
     font-size: 0.72rem;
+  }
+
+  .marca-logo {
+    width: 36px;
+    height: 42px;
+  }
+
+  .marca {
+    gap: 8px;
+  }
+
+  .marca h1 {
+    font-size: 1.25rem;
+  }
+
+  .pagina-apresentacao .marca {
+    gap: 8px;
+    padding-right: 4px;
+  }
+
+  .pagina-apresentacao #botao-tema {
+    margin-right: 8px;
+    padding-inline: 7px;
+    font-size: 0.7rem;
+  }
+
+  .conteudo-capa h2 {
+    font-size: 3.4rem;
+  }
+
+  .texto-historia h2 {
+    font-size: 2rem;
+  }
+
+  .pagina-apresentacao .cabecalho {
+    padding-inline: 12px;
+  }
+
+  .pagina-apresentacao .conteudo-apresentacao {
+    width: 100%;
+  }
+
+  .capa-apresentacao {
+    min-height: 620px;
+    align-items: flex-start;
+    padding: 72px 24px 100px;
+    background-image:
+      linear-gradient(90deg, rgba(18, 42, 66, 0.87), rgba(18, 42, 66, 0.42)),
+      linear-gradient(0deg, rgba(18, 42, 66, 0.8), transparent 60%),
+      url("fachada-fade-house.png");
+    background-position: center;
+  }
+
+  .endereco-apresentacao {
+    right: 24px;
+    bottom: 24px;
+  }
+
+  .historia-apresentacao {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding: 48px 24px;
+  }
+
+  .rodape-apresentacao {
+    padding-inline: 24px;
   }
 
   .navegacao {

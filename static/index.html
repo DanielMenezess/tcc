@@ -5,19 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
   <title>Fade House | Agendamentos</title>
-  <link rel="stylesheet" href="style.css?v=service-history-cancel-1">
+  <link rel="stylesheet" href="style.css?v=fade-house-apresentacao-2">
 </head>
 <body>
   <header class="cabecalho">
     <div class="marca">
-      <h1>Fade House</h1>
-      <p>Sistema de agendamentos</p>
+      <div class="marca-texto">
+        <h1>Fade House</h1>
+        <p>Barbearia · Curitiba, PR</p>
+      </div>
+      <img class="marca-logo" src="logo-fade-house.svg" alt="Logo Fade House Barbearia">
     </div>
     <button id="botao-tema" class="botao-tema" type="button" aria-pressed="false">Ativar tema escuro</button>
   </header>
 
-  <main class="conteudo">
-    <section id="tela-cadastro" class="painel painel-formulario" aria-labelledby="titulo-cadastro">
+  <main class="conteudo conteudo-apresentacao">
+    <section id="tela-apresentacao" class="tela-apresentacao" aria-labelledby="titulo-apresentacao">
+      <div class="capa-apresentacao">
+        <div class="conteudo-capa">
+          <p class="sobretitulo-apresentacao">Barbearia · Curitiba, Paraná</p>
+          <h2 id="titulo-apresentacao">Fade House</h2>
+          <p class="frase-apresentacao">Corte. Estilo. Atitude.</p>
+          <p class="resumo-apresentacao">Uma barbearia criada no Paraná, feita para quem valoriza presença, cuidado e personalidade.</p>
+          <div class="acoes-apresentacao">
+            <button id="abrir-cadastro-apresentacao" class="botao-apresentacao botao-apresentacao-principal" type="button">Agendar horário</button>
+            <button id="abrir-login-apresentacao" class="botao-apresentacao" type="button">Entrar na minha conta</button>
+          </div>
+        </div>
+        <p class="endereco-apresentacao">Rua Horizonte Cortezes, 317 <span>Xaxim · Curitiba, PR</span></p>
+      </div>
+
+      <section class="historia-apresentacao" aria-labelledby="titulo-historia">
+        <div class="texto-historia">
+          <p class="sobretitulo-apresentacao">Nossa história</p>
+          <h2 id="titulo-historia">Raiz paranaense.<br>Presença curitibana.</h2>
+          <p>A Fade House nasceu em 2022, no Paraná, com a vontade de fazer da barbearia um espaço de estilo, conversa e atenção aos detalhes. Com o tempo, se firmou como referência em Curitiba.</p>
+          <p>Agora, a experiência continua também na agenda: clientes e barbeiros encontram um jeito mais simples de organizar cada horário, com o mesmo cuidado que começa na cadeira.</p>
+        </div>
+        <div class="marcos-apresentacao" aria-label="Informações da Fade House">
+          <div class="marco-apresentacao"><strong>2022</strong><span>Fundação no Paraná</span></div>
+          <div class="marco-apresentacao"><strong>Xaxim</strong><span>Rua Horizonte Cortezes, 317</span></div>
+        </div>
+      </section>
+      <footer class="rodape-apresentacao">FADE HOUSE <span>BARBEARIA · CURITIBA</span></footer>
+    </section>
+
+    <section id="tela-cadastro" class="painel painel-formulario" aria-labelledby="titulo-cadastro" hidden>
       <h2 id="titulo-cadastro">Crie seu cadastro</h2>
       <p class="texto-introdutorio">Informe seus dados para criar uma conta de cliente.</p>
       <form id="form-cadastro">
@@ -294,6 +327,6 @@
     </section>
   </main>
 
-  <script src="app.js?v=service-history-cancel-1"></script>
+  <script src="app.js?v=fade-house-apresentacao-1"></script>
 </body>
 </html>

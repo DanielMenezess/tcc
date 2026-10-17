@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 250" role="img" aria-labelledby="titulo">
+  <title id="titulo">Fade House Barbearia</title>
+  <path d="M23 12h174a12 12 0 0 1 12 12v99c0 47-42 88-98 119C55 211 11 170 11 123V24a12 12 0 0 1 12-12Z" fill="#102543" stroke="#2878c8" stroke-width="5"/>
+  <rect x="98" y="32" width="24" height="66" rx="10" fill="#f8f8f5"/>
+  <path d="m98 48 24-13v15L98 63Zm0 28 24-13v15L98 91Z" fill="#2878c8"/>
+  <rect x="92" y="26" width="36" height="10" rx="4" fill="#f8f8f5"/>
+  <rect x="92" y="94" width="36" height="10" rx="4" fill="#f8f8f5"/>
+  <text x="110" y="144" fill="#f8f8f5" font-family="Georgia,serif" font-size="25" font-weight="700" text-anchor="middle" letter-spacing="3">FADE</text>
+  <text x="110" y="174" fill="#2878c8" font-family="Georgia,serif" font-size="28" font-weight="700" text-anchor="middle" letter-spacing="2">HOUSE</text>
+  <path d="M52 187h116" stroke="#f8f8f5" stroke-width="2"/>
+  <text x="110" y="210" fill="#f8f8f5" font-family="Georgia,serif" font-size="12" text-anchor="middle" letter-spacing="5">BARBEARIA</text>
+</svg>
