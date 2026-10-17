@@ -978,6 +978,10 @@ body {
   margin-right: 8px;
 }
 
+.botao-voltar-apresentacao {
+  margin: 0 0 18px;
+}
+
 .botao-sair:hover:not(:disabled),
 .botao-tema:hover {
   background: var(--item-hover);

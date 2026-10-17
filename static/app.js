@@ -344,6 +344,7 @@ function mostrarApresentacao() {
   telaApresentacao.hidden = false;
   telaCadastro.hidden = true;
   telaLogin.hidden = true;
+  window.scrollTo(0, 0);
 }
 
 function paineisDaAba(tipo) {
@@ -1045,6 +1046,8 @@ document.getElementById("abrir-login").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro").addEventListener("click", mostrarCadastro);
 document.getElementById("abrir-login-apresentacao").addEventListener("click", mostrarLogin);
 document.getElementById("abrir-cadastro-apresentacao").addEventListener("click", mostrarCadastro);
+document.getElementById("voltar-apresentacao-login").addEventListener("click", () => window.location.assign("/"));
+document.getElementById("voltar-apresentacao-cadastro").addEventListener("click", () => window.location.assign("/"));
 campoDataAgendaBarbeiro.addEventListener("change", () => carregarAgendamentosBarbeiro());
 campoDataAgendamento.addEventListener("change", () => {
   const hoje = dataLocalAtual();
