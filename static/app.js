@@ -1,78 +1,179 @@
-const formServico = document.getElementById("form-servico");
-const formCadastro = document.getElementById("form-cadastro");
-const formLogin = document.getElementById("form-login");
-const lista = document.getElementById("lista-servicos");
-const total = document.getElementById("total-servicos");
-const mensagemServico = document.getElementById("mensagem");
-const mensagemCadastro = document.getElementById("mensagem-cadastro");
-const mensagemLogin = document.getElementById("mensagem-login");
-const formContaAdministrador = document.getElementById("form-conta-administrador");
-const botaoCriarConta = document.getElementById("botao-criar-conta");
-const campoNomeCadastro = document.getElementById("cadastro-nome");
-const camposTelefone = Array.from(document.querySelectorAll('input[type="tel"]'));
-const botaoAdicionar = document.getElementById("adicionar");
-const botaoCadastro = document.getElementById("botao-cadastro");
-const botaoLogin = document.getElementById("botao-login");
-const botoesSair = Array.from(document.querySelectorAll(".botao-sair"));
-const botaoTema = document.getElementById("botao-tema");
-const botoesTema = [botaoTema];
-const telaCadastro = document.getElementById("tela-cadastro");
-const telaLogin = document.getElementById("tela-login");
-const telaApresentacao = document.getElementById("tela-apresentacao");
-const telaServicos = document.getElementById("tela-servicos");
-const cabecalhoSite = document.querySelector(".cabecalho");
-const navegacaoUsuario = document.getElementById("navegacao-usuario");
-const cabecalhoBarbeiro = document.getElementById("cabecalho-barbeiro");
-const painelAgendarCliente = document.getElementById("painel-agendar-cliente");
-const painelAgendamentosCliente = document.getElementById("painel-agendamentos-cliente");
-const abasUsuario = document.getElementById("abas-usuario");
-const painelProximoAgendamento = document.getElementById("painel-proximo-agendamento");
-const statusProximoAgendamento = document.getElementById("status-proximo-agendamento");
-const listaProximosAgendamentos = document.getElementById("lista-proximos-agendamentos");
-const painelAdicionar = document.getElementById("painel-adicionar");
-const painelContasAdministrador = document.getElementById("painel-contas-administrador");
-const mensagemContasAdministrador = document.getElementById("mensagem-contas-administrador");
-const listaContasClientes = document.getElementById("lista-contas-clientes");
-const totalContasClientes = document.getElementById("total-contas-clientes");
-const buscaContasClientes = document.getElementById("buscar-contas-clientes");
-const listaContasBarbeiros = document.getElementById("lista-contas-barbeiros");
-const totalContasBarbeiros = document.getElementById("total-contas-barbeiros");
-const buscaContasBarbeiros = document.getElementById("buscar-contas-barbeiros");
-const abasContas = Array.from(document.querySelectorAll("[data-aba-contas]"));
-const painelContasClientes = document.getElementById("grupo-contas-clientes");
-const painelContasBarbeiros = document.getElementById("grupo-contas-barbeiros");
-const painelAgendaBarbeiro = document.getElementById("painel-agenda-barbeiro");
-const painelAgendamentosPendentes = document.getElementById("painel-agendamentos-pendentes");
-const listaAgendamentosPendentes = document.getElementById("lista-agendamentos-pendentes");
-const totalAgendamentosPendentes = document.getElementById("total-agendamentos-pendentes");
-const mensagemAgendamentosPendentes = document.getElementById("mensagem-agendamentos-pendentes");
-const painelAgendamentosAConcluir = document.getElementById("painel-agendamentos-a-concluir");
-const listaAgendamentosAConcluir = document.getElementById("lista-agendamentos-a-concluir");
-const totalAgendamentosAConcluir = document.getElementById("total-agendamentos-a-concluir");
-const mensagemAgendamentosAConcluir = document.getElementById("mensagem-agendamentos-a-concluir");
-const painelHistoricoServicos = document.getElementById("painel-historico-servicos");
-const tituloHistoricoServicos = document.getElementById("titulo-historico-servicos");
-const listaHistoricoServicos = document.getElementById("lista-historico-servicos");
-const totalHistoricoServicos = document.getElementById("total-historico-servicos");
-const painelEscolherBarbeiro = document.getElementById("painel-escolher-barbeiro");
-const instrucaoServicos = document.getElementById("instrucao-servicos");
-const listaBarbeiros = document.getElementById("lista-barbeiros");
-const totalBarbeiros = document.getElementById("total-barbeiros");
-const painelEscolherData = document.getElementById("painel-escolher-data");
-const campoDataAgendamento = document.getElementById("data-agendamento");
-const mensagemData = document.getElementById("mensagem-data");
-const painelEscolherHorario = document.getElementById("painel-escolher-horario");
-const listaHorarios = document.getElementById("lista-horarios");
-const intervalosHorariosOcupadosTexto = document.getElementById("intervalos-horarios-ocupados");
-const horarioSelecionadoTexto = document.getElementById("horario-selecionado");
-const faixaHorarios = document.getElementById("faixa-horarios");
-const campoDataAgendaBarbeiro = document.getElementById("data-agenda-barbeiro");
-const listaAgendamentos = document.getElementById("lista-agendamentos");
-const totalAgendamentos = document.getElementById("total-agendamentos");
-const painelConfirmarAgendamento = document.getElementById("painel-confirmar-agendamento");
-const resumoAgendamento = document.getElementById("resumo-agendamento");
-const mensagemAgendamento = document.getElementById("mensagem-agendamento");
-const botaoConfirmarAgendamento = document.getElementById("botao-confirmar-agendamento");
+// -- Referências do DOM --
+const dom = {
+  formServico: document.getElementById("form-servico"),
+  formCadastro: document.getElementById("form-cadastro"),
+  formLogin: document.getElementById("form-login"),
+  lista: document.getElementById("lista-servicos"),
+  total: document.getElementById("total-servicos"),
+  mensagemServico: document.getElementById("mensagem"),
+  mensagemCadastro: document.getElementById("mensagem-cadastro"),
+  mensagemLogin: document.getElementById("mensagem-login"),
+  formContaAdministrador: document.getElementById("form-conta-administrador"),
+  botaoCriarConta: document.getElementById("botao-criar-conta"),
+  campoNomeCadastro: document.getElementById("cadastro-nome"),
+  camposTelefone: Array.from(document.querySelectorAll('input[type="tel"]')),
+  botaoAdicionar: document.getElementById("adicionar"),
+  botaoCadastro: document.getElementById("botao-cadastro"),
+  botaoLogin: document.getElementById("botao-login"),
+  botoesSair: Array.from(document.querySelectorAll(".botao-sair")),
+  botaoTema: document.getElementById("botao-tema"),
+  botoesTema: [document.getElementById("botao-tema")],
+  telaCadastro: document.getElementById("tela-cadastro"),
+  telaLogin: document.getElementById("tela-login"),
+  telaApresentacao: document.getElementById("tela-apresentacao"),
+  telaServicos: document.getElementById("tela-servicos"),
+  cabecalhoSite: document.querySelector(".cabecalho"),
+  navegacaoUsuario: document.getElementById("navegacao-usuario"),
+  cabecalhoBarbeiro: document.getElementById("cabecalho-barbeiro"),
+  painelAgendarCliente: document.getElementById("painel-agendar-cliente"),
+  painelAgendamentosCliente: document.getElementById("painel-agendamentos-cliente"),
+  abasUsuario: document.getElementById("abas-usuario"),
+  painelProximoAgendamento: document.getElementById("painel-proximo-agendamento"),
+  statusProximoAgendamento: document.getElementById("status-proximo-agendamento"),
+  listaProximosAgendamentos: document.getElementById("lista-proximos-agendamentos"),
+  painelAdicionar: document.getElementById("painel-adicionar"),
+  painelContasAdministrador: document.getElementById("painel-contas-administrador"),
+  mensagemContasAdministrador: document.getElementById("mensagem-contas-administrador"),
+  listaContasClientes: document.getElementById("lista-contas-clientes"),
+  totalContasClientes: document.getElementById("total-contas-clientes"),
+  buscaContasClientes: document.getElementById("buscar-contas-clientes"),
+  listaContasBarbeiros: document.getElementById("lista-contas-barbeiros"),
+  totalContasBarbeiros: document.getElementById("total-contas-barbeiros"),
+  buscaContasBarbeiros: document.getElementById("buscar-contas-barbeiros"),
+  abasContas: Array.from(document.querySelectorAll("[data-aba-contas]")),
+  painelContasClientes: document.getElementById("grupo-contas-clientes"),
+  painelContasBarbeiros: document.getElementById("grupo-contas-barbeiros"),
+  painelAgendaBarbeiro: document.getElementById("painel-agenda-barbeiro"),
+  painelAgendamentosPendentes: document.getElementById("painel-agendamentos-pendentes"),
+  listaAgendamentosPendentes: document.getElementById("lista-agendamentos-pendentes"),
+  totalAgendamentosPendentes: document.getElementById("total-agendamentos-pendentes"),
+  mensagemAgendamentosPendentes: document.getElementById("mensagem-agendamentos-pendentes"),
+  painelAgendamentosAConcluir: document.getElementById("painel-agendamentos-a-concluir"),
+  listaAgendamentosAConcluir: document.getElementById("lista-agendamentos-a-concluir"),
+  totalAgendamentosAConcluir: document.getElementById("total-agendamentos-a-concluir"),
+  mensagemAgendamentosAConcluir: document.getElementById("mensagem-agendamentos-a-concluir"),
+  painelHistoricoServicos: document.getElementById("painel-historico-servicos"),
+  tituloHistoricoServicos: document.getElementById("titulo-historico-servicos"),
+  listaHistoricoServicos: document.getElementById("lista-historico-servicos"),
+  totalHistoricoServicos: document.getElementById("total-historico-servicos"),
+  painelEscolherBarbeiro: document.getElementById("painel-escolher-barbeiro"),
+  instrucaoServicos: document.getElementById("instrucao-servicos"),
+  listaBarbeiros: document.getElementById("lista-barbeiros"),
+  totalBarbeiros: document.getElementById("total-barbeiros"),
+  painelEscolherData: document.getElementById("painel-escolher-data"),
+  campoDataAgendamento: document.getElementById("data-agendamento"),
+  mensagemData: document.getElementById("mensagem-data"),
+  painelEscolherHorario: document.getElementById("painel-escolher-horario"),
+  listaHorarios: document.getElementById("lista-horarios"),
+  intervalosHorariosOcupadosTexto: document.getElementById("intervalos-horarios-ocupados"),
+  horarioSelecionadoTexto: document.getElementById("horario-selecionado"),
+  faixaHorarios: document.getElementById("faixa-horarios"),
+  campoDataAgendaBarbeiro: document.getElementById("data-agenda-barbeiro"),
+  listaAgendamentos: document.getElementById("lista-agendamentos"),
+  totalAgendamentos: document.getElementById("total-agendamentos"),
+  painelConfirmarAgendamento: document.getElementById("painel-confirmar-agendamento"),
+  resumoAgendamento: document.getElementById("resumo-agendamento"),
+  mensagemAgendamento: document.getElementById("mensagem-agendamento"),
+  botaoConfirmarAgendamento: document.getElementById("botao-confirmar-agendamento"),
+};
+
+const formServico = dom.formServico;
+const formCadastro = dom.formCadastro;
+const formLogin = dom.formLogin;
+const lista = dom.lista;
+const total = dom.total;
+const mensagemServico = dom.mensagemServico;
+const mensagemCadastro = dom.mensagemCadastro;
+const mensagemLogin = dom.mensagemLogin;
+const formContaAdministrador = dom.formContaAdministrador;
+const botaoCriarConta = dom.botaoCriarConta;
+const campoNomeCadastro = dom.campoNomeCadastro;
+const camposTelefone = dom.camposTelefone;
+const botaoAdicionar = dom.botaoAdicionar;
+const botaoCadastro = dom.botaoCadastro;
+const botaoLogin = dom.botaoLogin;
+const botoesSair = dom.botoesSair;
+const botaoTema = dom.botaoTema;
+const botoesTema = dom.botoesTema;
+const telaCadastro = dom.telaCadastro;
+const telaLogin = dom.telaLogin;
+const telaApresentacao = dom.telaApresentacao;
+const telaServicos = dom.telaServicos;
+const cabecalhoSite = dom.cabecalhoSite;
+const navegacaoUsuario = dom.navegacaoUsuario;
+const cabecalhoBarbeiro = dom.cabecalhoBarbeiro;
+const painelAgendarCliente = dom.painelAgendarCliente;
+const painelAgendamentosCliente = dom.painelAgendamentosCliente;
+const abasUsuario = dom.abasUsuario;
+const painelProximoAgendamento = dom.painelProximoAgendamento;
+const statusProximoAgendamento = dom.statusProximoAgendamento;
+const listaProximosAgendamentos = dom.listaProximosAgendamentos;
+const painelAdicionar = dom.painelAdicionar;
+const painelContasAdministrador = dom.painelContasAdministrador;
+const mensagemContasAdministrador = dom.mensagemContasAdministrador;
+const listaContasClientes = dom.listaContasClientes;
+const totalContasClientes = dom.totalContasClientes;
+const buscaContasClientes = dom.buscaContasClientes;
+const listaContasBarbeiros = dom.listaContasBarbeiros;
+const totalContasBarbeiros = dom.totalContasBarbeiros;
+const buscaContasBarbeiros = dom.buscaContasBarbeiros;
+const abasContas = dom.abasContas;
+const painelContasClientes = dom.painelContasClientes;
+const painelContasBarbeiros = dom.painelContasBarbeiros;
+const painelAgendaBarbeiro = dom.painelAgendaBarbeiro;
+const painelAgendamentosPendentes = dom.painelAgendamentosPendentes;
+const listaAgendamentosPendentes = dom.listaAgendamentosPendentes;
+const totalAgendamentosPendentes = dom.totalAgendamentosPendentes;
+const mensagemAgendamentosPendentes = dom.mensagemAgendamentosPendentes;
+const painelAgendamentosAConcluir = dom.painelAgendamentosAConcluir;
+const listaAgendamentosAConcluir = dom.listaAgendamentosAConcluir;
+const totalAgendamentosAConcluir = dom.totalAgendamentosAConcluir;
+const mensagemAgendamentosAConcluir = dom.mensagemAgendamentosAConcluir;
+const painelHistoricoServicos = dom.painelHistoricoServicos;
+const tituloHistoricoServicos = dom.tituloHistoricoServicos;
+const listaHistoricoServicos = dom.listaHistoricoServicos;
+const totalHistoricoServicos = dom.totalHistoricoServicos;
+const painelEscolherBarbeiro = dom.painelEscolherBarbeiro;
+const instrucaoServicos = dom.instrucaoServicos;
+const listaBarbeiros = dom.listaBarbeiros;
+const totalBarbeiros = dom.totalBarbeiros;
+const painelEscolherData = dom.painelEscolherData;
+const campoDataAgendamento = dom.campoDataAgendamento;
+const mensagemData = dom.mensagemData;
+const painelEscolherHorario = dom.painelEscolherHorario;
+const listaHorarios = dom.listaHorarios;
+const intervalosHorariosOcupadosTexto = dom.intervalosHorariosOcupadosTexto;
+const horarioSelecionadoTexto = dom.horarioSelecionadoTexto;
+const faixaHorarios = dom.faixaHorarios;
+const campoDataAgendaBarbeiro = dom.campoDataAgendaBarbeiro;
+const listaAgendamentos = dom.listaAgendamentos;
+const totalAgendamentos = dom.totalAgendamentos;
+const painelConfirmarAgendamento = dom.painelConfirmarAgendamento;
+const resumoAgendamento = dom.resumoAgendamento;
+const mensagemAgendamento = dom.mensagemAgendamento;
+const botaoConfirmarAgendamento = dom.botaoConfirmarAgendamento;
+
+// -- Estado da aplicação --
+const state = {
+  tipoUsuario: null,
+  administradorUsuario: false,
+  servicoSelecionadoId: null,
+  servicoSelecionadoNome: null,
+  barbeiroSelecionadoId: null,
+  barbeiroSelecionadoNome: null,
+  dataSelecionada: null,
+  horarioSelecionado: null,
+  duracaoServicoSelecionado: 0,
+  intervalosHorariosOcupados: [],
+  carregandoDisponibilidadeHorarios: false,
+  erroDisponibilidadeHorarios: false,
+  requisicaoDisponibilidadeHorarios: 0,
+  agendamentoSolicitado: false,
+  confirmandoAgendamento: false,
+  contasClientes: [],
+  contasBarbeiros: [],
+};
+
 const paineisNavegacao = [
   painelAgendarCliente,
   painelAgendamentosCliente,
@@ -83,31 +184,37 @@ const paineisNavegacao = [
   painelHistoricoServicos,
   painelContasAdministrador,
 ];
-const formatarPreco = new Intl.NumberFormat("pt-BR", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-const formatarPrecoComCentavos = new Intl.NumberFormat("pt-BR", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-let tipoUsuario = null;
-let administradorUsuario = false;
-let servicoSelecionadoId = null;
-let servicoSelecionadoNome = null;
-let barbeiroSelecionadoId = null;
-let barbeiroSelecionadoNome = null;
-let dataSelecionada = null;
-let horarioSelecionado = null;
-let duracaoServicoSelecionado = 0;
-let intervalosHorariosOcupados = [];
-let carregandoDisponibilidadeHorarios = false;
-let erroDisponibilidadeHorarios = false;
-let requisicaoDisponibilidadeHorarios = 0;
-let agendamentoSolicitado = false;
-let confirmandoAgendamento = false;
-let contasClientes = [];
-let contasBarbeiros = [];
+
+const formatters = {
+  preco: new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }),
+  precoComCentavos: new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }),
+};
+
+const formatarPreco = formatters.preco;
+const formatarPrecoComCentavos = formatters.precoComCentavos;
+let tipoUsuario = state.tipoUsuario;
+let administradorUsuario = state.administradorUsuario;
+let servicoSelecionadoId = state.servicoSelecionadoId;
+let servicoSelecionadoNome = state.servicoSelecionadoNome;
+let barbeiroSelecionadoId = state.barbeiroSelecionadoId;
+let barbeiroSelecionadoNome = state.barbeiroSelecionadoNome;
+let dataSelecionada = state.dataSelecionada;
+let horarioSelecionado = state.horarioSelecionado;
+let duracaoServicoSelecionado = state.duracaoServicoSelecionado;
+let intervalosHorariosOcupados = state.intervalosHorariosOcupados;
+let carregandoDisponibilidadeHorarios = state.carregandoDisponibilidadeHorarios;
+let erroDisponibilidadeHorarios = state.erroDisponibilidadeHorarios;
+let requisicaoDisponibilidadeHorarios = state.requisicaoDisponibilidadeHorarios;
+let agendamentoSolicitado = state.agendamentoSolicitado;
+let confirmandoAgendamento = state.confirmandoAgendamento;
+let contasClientes = state.contasClientes;
+let contasBarbeiros = state.contasBarbeiros;
 
 document.body.insertBefore(navegacaoUsuario, document.querySelector("main"));
 
