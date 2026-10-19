@@ -8,13 +8,19 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DB_PATH = BASE_DIR / "fadehouse.db"
 
-app = Flask(__name__, static_folder=str(BASE_DIR / "static"), static_url_path="")
+FRONTEND_DIR = BASE_DIR / "frontend"
+app = Flask(
+    __name__,
+    template_folder=str(FRONTEND_DIR / "templates"),
+    static_folder=str(FRONTEND_DIR / "static"),
+    static_url_path="",
+)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
 
 TABELAS = {"clientes": "cliente", "barbeiros": "barbeiro"}
@@ -973,7 +979,7 @@ def remover_servico(servico_id):
 
 @app.get("/")
 def index():
-    return app.send_static_file("index.html")
+    return render_template("index.html")
 
 
 init_db()

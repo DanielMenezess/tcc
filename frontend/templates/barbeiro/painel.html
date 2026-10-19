@@ -1,0 +1,68 @@
+      <section id="painel-agendamentos-pendentes" class="painel" aria-labelledby="titulo-agendamentos-pendentes" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agendamentos-pendentes">Agendamentos pendentes</h2>
+          <span id="total-agendamentos-pendentes" class="contador" aria-live="polite"></span>
+        </div>
+        <p id="mensagem-agendamentos-pendentes" class="mensagem" aria-live="polite"></p>
+        <ul id="lista-agendamentos-pendentes" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Carregando agendamentos pendentes...</li>
+        </ul>
+      </section>
+      <section id="painel-agendamentos-a-concluir" class="painel" aria-labelledby="titulo-agendamentos-a-concluir" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agendamentos-a-concluir">Serviços aguardando conclusão</h2>
+          <span id="total-agendamentos-a-concluir" class="contador" aria-live="polite"></span>
+        </div>
+        <p id="mensagem-agendamentos-a-concluir" class="mensagem" aria-live="polite"></p>
+        <ul id="lista-agendamentos-a-concluir" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Carregando serviços aguardando conclusão...</li>
+        </ul>
+      </section>
+      <section id="painel-agenda-barbeiro" class="painel painel-formulario" aria-labelledby="titulo-agenda-barbeiro" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-agenda-barbeiro">Agenda do dia</h2>
+          <span id="total-agendamentos" class="contador" aria-live="polite"></span>
+        </div>
+        <div class="campos-formulario">
+          <div class="campo campo-completo">
+            <label for="data-agenda-barbeiro">Data dos agendamentos</label>
+            <input id="data-agenda-barbeiro" name="data-agenda-barbeiro" type="date">
+          </div>
+        </div>
+        <ul id="lista-agendamentos" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Selecione uma data para consultar a agenda.</li>
+        </ul>
+      </section>
+      <section id="painel-historico-servicos" class="painel" aria-labelledby="titulo-historico-servicos" hidden>
+        <div class="cabecalho-painel">
+          <h2 id="titulo-historico-servicos">Histórico de serviços</h2>
+          <span id="total-historico-servicos" class="contador" aria-live="polite"></span>
+        </div>
+        <ul id="lista-historico-servicos" class="lista-servicos" aria-live="polite">
+          <li class="estado-lista">Carregando histórico...</li>
+        </ul>
+      </section>
+      <section id="painel-adicionar" class="painel painel-formulario" aria-labelledby="titulo-adicionar" hidden>
+        <h2 id="titulo-adicionar">Adicionar serviço</h2>
+        <form id="form-servico">
+          <div class="campos-formulario">
+            <div class="campo campo-nome">
+              <label for="nome">Nome</label>
+              <input id="nome" name="nome" type="text" placeholder="Ex.: Barboterapia" maxlength="80" required>
+              <span class="erro" data-erro="nome"></span>
+            </div>
+            <div class="campo">
+              <label for="duracao">Duração (min)</label>
+              <input id="duracao" name="duracao" type="number" min="5" max="480" step="5" placeholder="30" required>
+              <span class="erro" data-erro="duracao"></span>
+            </div>
+            <div class="campo campo-preco">
+              <label for="preco">Preço (R$)</label>
+              <input id="preco" name="preco" type="number" min="0" max="99999.99" step="0.01" placeholder="40,00" required>
+              <span class="erro" data-erro="preco"></span>
+            </div>
+          </div>
+          <p id="mensagem" class="mensagem" aria-live="polite"></p>
+          <button id="adicionar" class="botao-principal" type="submit">Adicionar</button>
+        </form>
+      </section>
