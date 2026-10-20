@@ -1,6 +1,3 @@
--- Schema do Fade House (SQLite).
--- O backend cria a conta administradora e armazena a senha usando hash.
-
 CREATE TABLE cliente (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     nome        TEXT NOT NULL,

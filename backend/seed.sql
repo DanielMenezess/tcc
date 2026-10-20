@@ -1,5 +1,3 @@
--- Dados iniciais dos serviços do Fade House (SQLite).
-
 INSERT INTO servico (nome, duracao, preco) VALUES
     ('Corte', 30, 35),
     ('Barba', 20, 25),
